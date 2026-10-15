@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Терминальная анимация: заявка с сайта уходит через Telegram-бота в чат фирмы, менеджер связывается с клиентом.">
+<title>Lead Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: one vertical terminal window, phone-portrait, pipeline flows top → bottom, loops forever */
+:root{
+  --bg:#0b0c14; --win:#11121d; --line:#272a3d; --dim:#6b6f8c; --fg:#d9dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --green:#6fd59a; --violet:#b69cff; --red:#ff7a85;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:12px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.win{max-width:460px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  box-shadow:0 0 60px rgba(122,162,255,.08)}
+.bar{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:14px 14px 10px;display:flex;flex-direction:column;gap:0}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;text-align:center;margin:2px 0 8px;text-wrap:balance}
+h1 b{color:var(--amber);font-weight:600} h1 em{color:var(--green);font-style:normal}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;color:var(--dim);font-size:10px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.legend span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;background:var(--c)}
+.box{border:1px solid var(--c);border-radius:4px;padding:10px 11px;opacity:.35;transition:opacity .4s,box-shadow .4s;position:relative}
+.box.on{opacity:1;box-shadow:0 0 18px color-mix(in srgb,var(--c) 25%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:8px;color:var(--c);font-weight:600;margin-bottom:6px}
+.hd small{color:var(--dim);font-weight:400}
+.row{display:flex;justify-content:space-between;gap:8px;line-height:1.7}
+.row .k{color:var(--dim)}
+.wire{height:30px;position:relative;margin:0 auto;width:1px;border-left:1px dashed var(--line)}
+.wire::after{content:"";position:absolute;left:-4px;top:0;width:7px;height:7px;border-radius:50%;background:var(--c);opacity:0}
+.wire.go::after{animation:drop .7s ease-in forwards}
+@keyframes drop{0%{top:-2px;opacity:1}100%{top:26px;opacity:1}}
+.wire em{position:absolute;left:10px;top:8px;font-size:10px;color:var(--dim);white-space:nowrap;font-style:normal}
+/* site mock */
+.form{border:1px solid var(--line);border-radius:3px;padding:7px 8px;margin-top:4px;display:grid;gap:4px}
+.f{display:flex;gap:6px}.f .k{color:var(--dim);min-width:62px}
+.f .v{color:var(--fg)}.f .v::after{content:"▍";color:var(--blue);animation:blink 1s steps(1) infinite;visibility:hidden}
+.f .v.typing::after{visibility:visible}
+@keyframes blink{50%{opacity:0}}
+.btn{justify-self:start;margin-top:2px;padding:2px 8px;border:1px solid var(--blue);color:var(--blue);border-radius:2px;transition:background .2s,color .2s}
+.btn.hit{background:var(--blue);color:var(--bg)}
+/* bars */
+.meter{display:grid;grid-template-columns:60px 1fr 42px;gap:8px;align-items:center;line-height:1.8}
+.track{height:8px;background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.fill{height:100%;width:0;background:var(--c);transition:width 1s ease-out}
+.meter b{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+/* telegram */
+.msg{border-left:2px solid var(--violet);background:#171830;padding:7px 9px;margin-top:4px;line-height:1.6;transform:translateY(6px);opacity:0;transition:all .4s}
+.msg.show{transform:none;opacity:1}
+.msg .t{color:var(--violet)}
+.kb{display:flex;gap:6px;margin-top:6px}
+.kb span{flex:1;text-align:center;border:1px solid var(--line);padding:2px 0;color:var(--dim);transition:all .25s}
+.kb span.hit{border-color:var(--green);color:var(--green)}
+/* manager */
+.steps{display:grid;gap:2px}
+.st{color:var(--dim);transition:color .3s}
+.st::before{content:"○ ";}
+.st.done{color:var(--fg)} .st.done::before{content:"● ";color:var(--green)}
+.st.run::before{content:"◐ ";color:var(--amber)}
+/* log */
+.log{margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:8px 10px 6px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:4px}
+.ll{display:grid;grid-template-columns:52px 54px 1fr;gap:6px;font-size:10.5px;line-height:1.75;opacity:0;transition:opacity .3s;white-space:nowrap;overflow:hidden}
+.ll.show{opacity:1}
+.ll .ts{color:var(--dim)} .ll .who{color:var(--c)}
+.ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{margin-top:10px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+.status{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10.5px;color:var(--dim);padding:8px 0 4px;font-variant-numeric:tabular-nums}
+.status b{color:var(--fg);font-weight:500}.status .g{color:var(--green)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/client — lead-flow — 46x92</span></div>
+  <div class="inner">
+    <h1>ЗАКАЗЧИК → <b>САЙТ</b> → <em>TG-БОТ</em> → МЕНЕДЖЕР</h1>
+    <div class="legend">
+      <span style="--c:var(--amber)">бриф</span>
+      <span style="--c:var(--blue)">сайт · форма</span>
+      <span style="--c:var(--green)">бот · api</span>
+      <span style="--c:var(--violet)">чат фирмы</span>
+    </div>
+
+    <div class="box" id="b1" style="--c:var(--amber)">
+      <div class="hd">01 · бриф от заказчика <small>runs once</small></div>
+      <div class="row"><span class="k">нужно</span><span>сайт-визитка</span></div>
+      <div class="row"><span class="k">+</span><span>форма заявки</span></div>
+      <div class="row"><span class="k">+</span><span>заявки → Telegram</span></div>
+      <div class="row"><span class="k">срок</span><span>14 дней</span></div>
+    </div>
+
+    <div class="wire" id="w1" style="--c:var(--amber)"><em>деплой</em></div>
+
+    <div class="box" id="b2" style="--c:var(--blue)">
+      <div class="hd">02 · сайт <small>firma.com.ua</small></div>
+      <div class="row"><span class="k">о компании · услуги · контакты</span><span style="color:var(--green)">200</span></div>
+      <div class="form">
+        <div class="f"><span class="k">имя</span><span class="v" id="fName"></span></div>
+        <div class="f"><span class="k">телефон</span><span class="v" id="fPhone"></span></div>
+        <div class="f"><span class="k">услуга</span><span class="v" id="fSvc"></span></div>
+        <span class="btn" id="send">отправить заявку</span>
+      </div>
+    </div>
+
+    <div class="wire" id="w2" style="--c:var(--blue)"><em>POST /api/lead</em></div>
+
+    <div class="box" id="b3" style="--c:var(--green)">
+      <div class="hd">03 · telegram-бот <small>sendMessage</small></div>
+      <div class="meter"><span class="k" style="color:var(--dim)">валидация</span><div class="track"><div class="fill" id="m1"></div></div><b>ok</b></div>
+      <div class="meter"><span class="k" style="color:var(--dim)">запись в бд</span><div class="track"><div class="fill" id="m2"></div></div><b>ok</b></div>
+      <div class="meter"><span class="k" style="color:var(--dim)">доставка</span><div class="track"><div class="fill" id="m3"></div></div><b id="lat">0.4s</b></div>
+    </div>
+
+    <div class="wire" id="w3" style="--c:var(--green)"><em>чат «Заявки»</em></div>
+
+    <div class="box" id="b4" style="--c:var(--violet)">
+      <div class="hd">04 · чат фирмы <small>@firma_leads_bot</small></div>
+      <div class="msg" id="msg">
+        <div class="t">новая заявка #<span id="num">128</span></div>
+        <div>Олена · +380 67 412 08 91</div>
+        <div style="color:var(--dim)">услуга: SMM-продвижение</div>
+        <div class="kb"><span id="take">взять</span><span>позже</span></div>
+      </div>
+    </div>
+
+    <div class="wire" id="w4" style="--c:var(--violet)"><em>менеджер Ирина</em></div>
+
+    <div class="box" id="b5" style="--c:var(--green)">
+      <div class="hd">05 · обработка <small>SLA 15 мин</small></div>
+      <div class="steps">
+        <div class="st" id="s1">заявка взята в работу</div>
+        <div class="st" id="s2">звонок клиенту</div>
+        <div class="st" id="s3">встреча назначена · статус обновлён</div>
+      </div>
+    </div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+
+    <div class="prompt"><span class="p">~/client $</span> uvicorn app:main --port 8000 &amp;&amp; python bot.py</div>
+    <div class="status">
+      <span>заявок <b id="cnt">[127]</b></span>
+      <span>в работе <b id="work">[2]</b></span>
+      <span>ответ <b class="g">[7 мин]</b></span>
+      <span>потеряно <b>[0]</b></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const people = [
+    ['Олена','+380 67 412 08 91','SMM-продвижение'],
+    ['Андрій','+380 50 733 19 04','сайт-визитка'],
+    ['Марина','+380 93 208 55 12','брендинг'],
+  ];
+  let n = 127, k = 0, timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const sleepType = (el, text, start, speed = 45) => {
+    at(start, () => el.classList.add('typing'));
+    [...text].forEach((ch, i) => at(start + i * speed, () => el.textContent += ch));
+    at(start + text.length * speed, () => el.classList.remove('typing'));
+    return start + text.length * speed;
+  };
+  const clock = () => { const d = new Date(); return d.toTimeString().slice(0, 8); };
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="ts">${clock()}</span><span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  const wire = (id, t) => at(t, () => { const w = $(id); w.classList.remove('go'); void w.offsetWidth; w.classList.add('go'); });
+
+  function reset() {
+    ['b2','b3','b4','b5'].forEach(id => $(id).classList.remove('on'));
+    ['fName','fPhone','fSvc'].forEach(id => $(id).textContent = '');
+    ['m1','m2','m3'].forEach(id => $(id).style.width = '0');
+    ['s1','s2','s3'].forEach(id => $(id).className = 'st');
+    $('msg').classList.remove('show'); $('take').classList.remove('hit'); $('send').classList.remove('hit');
+  }
+
+  function cycle() {
+    timers.forEach(clearTimeout); timers = []; reset();
+    const [name, phone, svc] = people[k++ % people.length];
+    $('b1').classList.add('on');
+    wire('w1', 300);
+    at(900, () => { $('b2').classList.add('on'); log('site', 'var(--blue)', 'GET / · 200 · 0.18s'); });
+    let t = sleepType($('fName'), name, 1300);
+    t = sleepType($('fPhone'), phone, t + 200, 35);
+    t = sleepType($('fSvc'), svc, t + 200, 40);
+    at(t + 300, () => { $('send').classList.add('hit'); log('site', 'var(--blue)', 'POST /api/lead · 201'); });
+    wire('w2', t + 500);
+    at(t + 1100, () => { $('b3').classList.add('on'); $('m1').style.width = '100%'; });
+    at(t + 1500, () => $('m2').style.width = '100%');
+    at(t + 1900, () => { $('m3').style.width = '100%'; log('bot', 'var(--green)', 'sendMessage · ok · ' + (0.3 + Math.random() * .3).toFixed(1) + 's'); });
+    wire('w3', t + 2700);
+    at(t + 3300, () => {
+      n++; $('num').textContent = n; $('cnt').textContent = `[${n}]`;
+      $('b4').classList.add('on');
+      $('msg').querySelector('div:nth-child(2)').textContent = `${name} · ${phone}`;
+      $('msg').querySelector('div:nth-child(3)').textContent = `услуга: ${svc}`;
+      $('msg').classList.add('show');
+      log('chat', 'var(--violet)', `заявка #${n} · ${name}`);
+    });
+    at(t + 4600, () => $('take').classList.add('hit'));
+    wire('w4', t + 4800);
+    at(t + 5400, () => { $('b5').classList.add('on'); $('s1').className = 'st done'; $('s2').className = 'st run'; $('work').textContent = '[3]'; log('irina', 'var(--amber)', `взяла #${n} · звоню`); });
+    at(t + 7000, () => { $('s2').className = 'st done'; $('s3').className = 'st run'; });
+    at(t + 8200, () => { $('s3').className = 'st done'; $('work').textContent = '[2]'; log('irina', 'var(--amber)', `#${n} · встреча назначена`); });
+    at(t + 10200, cycle);
+  }
+
+  if (reduce) {
+    ['b1','b2','b3','b4','b5'].forEach(id => $(id).classList.add('on'));
+    $('fName').textContent = 'Олена'; $('fPhone').textContent = '+380 67 412 08 91'; $('fSvc').textContent = 'SMM-продвижение';
+    ['m1','m2','m3'].forEach(id => $(id).style.width = '100%');
+    $('msg').classList.add('show'); ['s1','s2','s3'].forEach(id => $(id).className = 'st done');
+  } else cycle();
+})();
+</script>
+
+</body>
+</html>
