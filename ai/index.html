@@ -43,6 +43,8 @@ a.item .name{color:var(--cyan)}
 .st{font-size:10.5px;color:var(--dim);white-space:nowrap}
 a.item .st{color:var(--green)}
 .soon{opacity:.55}
+.sec{color:var(--dim);font-size:10.5px;letter-spacing:.08em;margin:18px 0 8px}
+.sec:first-of-type{margin-top:4px}
 .foot{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
 .foot b{color:var(--fg);font-weight:500}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -56,6 +58,7 @@ a.item .st{color:var(--green)}
     <p class="cmd"><b>~/ai $</b> ls concepts/</p>
     <h1>AI <b>ENGINEERING</b></h1>
     <p class="sub">Как устроены языковые модели, по шагам: от текста до ответа. Каждая концепция — отдельная анимация.</p>
+    <p class="sec">МОДЕЛЬ · как она устроена</p>
     <ol>
       <li><a class="item" href="tokenization/"><span class="num">01</span><span><span class="name">tokenization</span><span class="desc">текст → токены → id → векторы, на живом BPE</span></span><span class="st">● готово</span></a></li>
       <li><a class="item" href="embeddings/"><span class="num">02</span><span><span class="name">embeddings</span><span class="desc">skip-gram учится в браузере, слова сами собираются по смыслу</span></span><span class="st">● готово</span></a></li>
@@ -63,7 +66,27 @@ a.item .st{color:var(--green)}
       <li><a class="item" href="transformer/"><span class="num">04</span><span><span class="name">transformer</span><span class="desc">настоящая мини-модель генерирует текст в браузере</span></span><span class="st">● готово</span></a></li>
       <li><a class="item" href="moe/"><span class="num">05</span><span><span class="name">mixture of experts</span><span class="desc">роутер отправляет токен к 2 из 4 экспертов, остальные спят</span></span><span class="st">● готово</span></a></li>
     </ol>
-    <div class="foot"><span>готово <b>[5/5]</b></span><span>static · no build</span></div>
+    <p class="sec">ИНФЕРЕНС · как она быстро отвечает</p>
+    <ol>
+      <li><a class="item" href="kv-cache/"><span class="num">06</span><span><span class="name">kv cache</span><span class="desc">хранить K и V прошлых токенов вместо пересчёта</span></span><span class="st">● готово</span></a></li>
+      <li class="item soon"><span class="num">07</span><span><span class="name">speculative decoding</span><span class="desc">маленькая модель угадывает, большая проверяет пачкой</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">08</span><span><span class="name">continuous batching</span><span class="desc">запросы входят и выходят из батча на каждом шаге</span></span><span class="st">скоро</span></li>
+    </ol>
+    <p class="sec">ПОИСК И RAG · как дать ей знания</p>
+    <ol>
+      <li class="item soon"><span class="num">09</span><span><span class="name">semantic chunking</span><span class="desc">резать документ по смыслу, а не по символам</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">10</span><span><span class="name">bm25</span><span class="desc">классический поиск по словам</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">11</span><span><span class="name">hybrid search</span><span class="desc">слова + векторы вместе</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">12</span><span><span class="name">query rewriting</span><span class="desc">переписать вопрос, чтобы найти лучше</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">13</span><span><span class="name">re-ranking</span><span class="desc">пересортировать найденное точной моделью</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">14</span><span><span class="name">rag</span><span class="desc">поиск + генерация: ответ по документам</span></span><span class="st">скоро</span></li>
+    </ol>
+    <p class="sec">АГЕНТЫ · как она действует</p>
+    <ol>
+      <li class="item soon"><span class="num">15</span><span><span class="name">tool use</span><span class="desc">модель вызывает функции и API</span></span><span class="st">скоро</span></li>
+      <li class="item soon"><span class="num">16</span><span><span class="name">agents</span><span class="desc">цикл «думай → действуй → смотри результат»</span></span><span class="st">скоро</span></li>
+    </ol>
+    <div class="foot"><span>готово <b>[6/16]</b></span><span>static · no build</span></div>
   </div>
 </div>
 </body>
