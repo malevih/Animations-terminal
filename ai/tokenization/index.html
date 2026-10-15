@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Как работает токенизация: настоящий BPE на учебном корпусе — частые пары, слияния, словарь, id и эмбеддинги.">
+<title>Tokenization BPE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; phase strip, corpus being merged by BPE, pair counts + growing vocab, then encoding new text → ids → embedding rows */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+
+.phases{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.ph{border:1px solid var(--line);text-align:center;padding:4px 0 3px;color:var(--dim);font-size:9.5px;white-space:nowrap;overflow:hidden;transition:all .3s}
+.ph.now{border-color:var(--cyan);color:var(--fg);box-shadow:0 0 12px rgba(111,211,214,.3)}
+.ph.done{color:var(--fg)}
+
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;transition:opacity .4s,box-shadow .4s;opacity:.4}
+.box.on{opacity:1;box-shadow:0 0 16px color-mix(in srgb,var(--c) 20%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+
+/* corpus rows */
+.wrow{display:flex;align-items:center;gap:8px;line-height:1;min-height:26px}
+.wrow .n{color:var(--dim);width:24px;flex:none;font-size:10.5px;font-variant-numeric:tabular-nums}
+.syms{display:flex;gap:3px;flex-wrap:wrap}
+.sym{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:20px;padding:0 4px;border:1px solid var(--line);border-radius:3px;font-size:12px;color:var(--fg);transition:all .25s;background:transparent}
+.sym.eow{color:var(--dim)}
+.sym.hl{border-color:var(--amber);background:rgba(242,166,90,.18);color:#fff}
+.sym.fresh{border-color:var(--cyan);background:rgba(111,211,214,.18);animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.7)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+.two{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:430px){.two{grid-template-columns:1.1fr 1fr}}
+.pair{display:grid;grid-template-columns:62px 1fr 26px;gap:6px;align-items:center;line-height:1.75;font-variant-numeric:tabular-nums}
+.pair .p{white-space:nowrap}
+.pair .t{height:7px;background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.pair .f{height:100%;background:var(--dim);transition:width .4s}
+.pair.win .f{background:var(--amber)} .pair.win .p{color:var(--amber)}
+.pair b{text-align:right;font-weight:500}
+.empty{color:var(--dim);line-height:1.75}
+
+.vocab{display:flex;flex-wrap:wrap;gap:3px;align-content:flex-start;min-height:48px}
+.vt{font-size:10.5px;padding:1px 4px;border:1px solid var(--line);border-radius:2px;color:var(--dim);white-space:nowrap}
+.vt i{font-style:normal;color:var(--line);margin-right:3px;font-size:9.5px}
+.vt.m{color:var(--fg);border-color:color-mix(in srgb,var(--cyan) 50%,var(--line))}
+.vt.fresh{animation:pop .45s ease-out;border-color:var(--cyan);color:#fff}
+
+/* encode */
+.inp{font-size:13px;margin-bottom:6px;min-height:18px}
+.inp .p{color:var(--violet)}
+.inp .typing::after{content:"▍";color:var(--cyan);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.toks{display:flex;flex-wrap:wrap;gap:4px 3px;min-height:46px;align-content:flex-start}
+.tk{display:inline-flex;flex-direction:column;align-items:center;gap:2px}
+.tk .sym{border-color:hsl(var(--h) 60% 55%);background:hsla(var(--h),60%,55%,.16)}
+.tk .id{font-size:9.5px;color:hsl(var(--h) 60% 70%);opacity:0;transition:opacity .3s;font-variant-numeric:tabular-nums}
+.tk.idv .id{opacity:1}
+.gap{width:8px}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+
+/* embeddings */
+.emb{display:grid;gap:3px}
+.er{display:grid;grid-template-columns:62px 26px 1fr;gap:6px;align-items:center;opacity:0;transform:translateX(-4px);transition:all .3s;font-variant-numeric:tabular-nums}
+.er.show{opacity:1;transform:none}
+.er .tn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.er .ii{color:var(--dim);font-size:10px;text-align:right}
+.cells{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
+.cell{height:14px;border-radius:2px}
+
+.log{border:1px solid var(--line);border-radius:4px;padding:7px 9px 5px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:3px}
+.ll{display:grid;grid-template-columns:54px 1fr;gap:6px;font-size:10.5px;line-height:1.7;opacity:0;transition:opacity .3s;white-space:nowrap}
+.ll.show{opacity:1}
+.ll .who{color:var(--c)} .ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+.status{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:10.5px;color:var(--dim);padding:0 0 3px;font-variant-numeric:tabular-nums}
+.status b{color:var(--fg);font-weight:500}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — tokenization — bpe</span></div>
+  <div class="inner">
+    <div class="top"><a href="../" id="back">‹ ai engineering</a><span>01 / концепции</span></div>
+    <h1>TOKENIZATION · <b>BYTE PAIR ENCODING</b></h1>
+    <p class="lead">Модель не видит буквы и слова. Она видит номера токенов. BPE строит словарь кусков слов: берёт самую частую пару соседей и склеивает её в новый токен.</p>
+
+    <div class="phases" id="phases">
+      <div class="ph">корпус</div><div class="ph">пары</div><div class="ph">слияние</div><div class="ph">кодирую</div><div class="ph">id</div><div class="ph">вектор</div>
+    </div>
+
+    <div class="box" id="bCorpus" style="--c:var(--amber)">
+      <div class="hd">01 · корпус для обучения <small id="mergeNo">символы · _ = конец слова</small></div>
+      <div id="corpus"></div>
+    </div>
+
+    <div class="two">
+      <div class="box" id="bPairs" style="--c:var(--amber)">
+        <div class="hd">02 · частые пары <small>× частота</small></div>
+        <div id="pairs"><div class="empty">считаю соседей…</div></div>
+      </div>
+      <div class="box" id="bVocab" style="--c:var(--cyan)">
+        <div class="hd">03 · словарь <small id="vSize">0</small></div>
+        <div class="vocab" id="vocab"></div>
+      </div>
+    </div>
+
+    <div class="box" id="bEnc" style="--c:var(--violet)">
+      <div class="hd">04 · новый текст → токены → id <small>правила те же</small></div>
+      <div class="inp"><span class="p">›</span> <span id="inTxt"></span></div>
+      <div class="toks" id="toks"></div>
+      <div class="note" id="encNote"></div>
+    </div>
+
+    <div class="box" id="bEmb" style="--c:var(--green)">
+      <div class="hd">05 · id → вектор (эмбеддинг) <small>d = 8</small></div>
+      <div class="emb" id="emb"></div>
+      <div class="note">Каждый id — номер строки в обучаемой таблице. В учебном примере строка из 8 чисел, в больших моделях из тысяч. Дальше в нейросеть уходят именно эти векторы.</div>
+    </div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">bpe train --corpus words.txt --merges 10</span></div>
+    <div class="status">
+      <span>словарь <b id="sV">[11]</b></span>
+      <span>слияний <b id="sM">[0]</b></span>
+      <span>символов <b id="sC">[–]</b></span>
+      <span>токенов <b id="sT">[–]</b></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- real BPE on a tiny corpus (classic Sennrich et al. example) ----------
+  const CORPUS = [['low',5],['lower',2],['newest',6],['widest',3]];
+  const EOW = '_';
+  const MAX_MERGES = 10;
+  const NEW_TEXT = 'lowest newer';
+
+  const baseChars = [...new Set(CORPUS.flatMap(([w]) => [...w]))].sort();
+  const BASE = [...baseChars, EOW];
+
+  function countPairs(words){
+    const m = new Map();
+    words.forEach(({sy, n}) => { for (let i = 0; i < sy.length - 1; i++){ const k = sy[i] + '\u0000' + sy[i + 1]; m.set(k, (m.get(k) || 0) + n); } });
+    return [...m.entries()].map(([k, c]) => ({a:k.split('\u0000')[0], b:k.split('\u0000')[1], c})).sort((x, y) => y.c - x.c);
+  }
+  function mergeWord(sy, a, b){
+    const out = [];
+    for (let i = 0; i < sy.length; i++){
+      if (i < sy.length - 1 && sy[i] === a && sy[i + 1] === b){ out.push(a + b); i++; } else out.push(sy[i]);
+    }
+    return out;
+  }
+  // train once, keep every step for the animation
+  function train(){
+    let words = CORPUS.map(([w, n]) => ({w, n, sy:[...w, EOW]}));
+    const steps = [], merges = [];
+    for (let s = 0; s < MAX_MERGES; s++){
+      const pairs = countPairs(words);
+      if (!pairs.length || pairs[0].c < 2) break;
+      const {a, b, c} = pairs[0];
+      const before = words.map(x => [...x.sy]);
+      words = words.map(x => ({...x, sy:mergeWord(x.sy, a, b)}));
+      merges.push([a, b]);
+      steps.push({pairs:pairs.slice(0, 3), a, b, c, before, after:words.map(x => [...x.sy])});
+    }
+    return {steps, merges};
+  }
+  const {steps:STEPS, merges:MERGES} = train();
+  const VOCAB = [...BASE, ...MERGES.map(([a, b]) => a + b)];
+  const ID = Object.fromEntries(VOCAB.map((t, i) => [t, i]));
+
+  function encodeWord(w){
+    let sy = [...w, EOW];
+    const trace = [[...sy]];
+    for (const [a, b] of MERGES){
+      const next = mergeWord(sy, a, b);
+      if (next.length !== sy.length){ sy = next; trace.push([...sy]); }
+    }
+    return trace;
+  }
+
+  // ---------- rendering helpers ----------
+  let timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const symHTML = (t, cls = '') => `<span class="sym ${t === EOW ? 'eow' : ''} ${cls}">${esc(t)}</span>`;
+  const hue = id => (id * 47 + 170) % 360;
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  const phase = i => document.querySelectorAll('.ph').forEach((p, k) => { p.classList.toggle('now', k === i); p.classList.toggle('done', k < i); });
+  const on = (...ids) => ids.forEach(id => $(id).classList.add('on'));
+  const off = (...ids) => ids.forEach(id => $(id).classList.remove('on'));
+
+  function renderCorpus(rows, hlPair, fresh){
+    $('corpus').innerHTML = rows.map((sy, r) => {
+      let html = '';
+      for (let i = 0; i < sy.length; i++){
+        let cls = '';
+        if (hlPair && i < sy.length - 1 && sy[i] === hlPair[0] && sy[i + 1] === hlPair[1]){ html += symHTML(sy[i], 'hl') + symHTML(sy[i + 1], 'hl'); i++; continue; }
+        if (fresh && sy[i] === fresh) cls = 'fresh';
+        html += symHTML(sy[i], cls);
+      }
+      return `<div class="wrow"><span class="n">×${CORPUS[r][1]}</span><span class="syms">${html}</span></div>`;
+    }).join('');
+  }
+  function renderPairs(pairs, win){
+    const max = pairs[0]?.c || 1;
+    $('pairs').innerHTML = pairs.map((p, i) => `<div class="pair ${win && i === 0 ? 'win' : ''}"><span class="p">${esc(p.a)} + ${esc(p.b)}</span><span class="t"><span class="f" style="display:block;width:${p.c / max * 100}%"></span></span><b>${p.c}</b></div>`).join('');
+  }
+  function renderVocab(n, freshIdx){
+    $('vocab').innerHTML = VOCAB.slice(0, n).map((t, i) => `<span class="vt ${i >= BASE.length ? 'm' : ''} ${i === freshIdx ? 'fresh' : ''}"><i>${i}</i>${esc(t)}</span>`).join('');
+    $('vSize').textContent = `${n} токенов`;
+    $('sV').textContent = `[${n}]`;
+  }
+
+  // ---------- timeline ----------
+  function cycle(){
+    timers.forEach(clearTimeout); timers = [];
+    off('bPairs','bVocab','bEnc','bEmb'); on('bCorpus');
+    $('logs').innerHTML = ''; $('toks').innerHTML = ''; $('inTxt').textContent = ''; $('encNote').textContent = ''; $('emb').innerHTML = '';
+    $('pairs').innerHTML = '<div class="empty">считаю соседей…</div>';
+    $('sM').textContent = '[0]'; $('sC').textContent = '[–]'; $('sT').textContent = '[–]';
+    $('mergeNo').textContent = 'символы · _ = конец слова';
+    $('cmd').textContent = `bpe train --corpus words.txt --merges ${MAX_MERGES}`;
+    phase(0);
+    renderCorpus(STEPS[0].before);
+    renderVocab(BASE.length);
+    const total = CORPUS.reduce((s, [w, n]) => s + n, 0);
+    log('corpus', 'var(--amber)', `${CORPUS.length} слова · ${total} вхождений · ${BASE.length} базовых символов`);
+
+    let t = 1400;
+    at(t, () => { on('bPairs','bVocab'); phase(1); });
+    STEPS.forEach((st, s) => {
+      const T = t + s * 1500;
+      at(T, () => { phase(1); renderPairs(st.pairs, false); $('mergeNo').textContent = `слияние ${s + 1}/${STEPS.length}`; });
+      at(T + 450, () => { phase(2); renderPairs(st.pairs, true); renderCorpus(st.before, [st.a, st.b]); });
+      at(T + 1000, () => {
+        renderCorpus(st.after, null, st.a + st.b);
+        renderVocab(BASE.length + s + 1, BASE.length + s);
+        $('sM').textContent = `[${s + 1}]`;
+        log('merge', 'var(--cyan)', `${esc(st.a)} + ${esc(st.b)} → ${esc(st.a + st.b)} · ×${st.c} · id ${BASE.length + s}`);
+      });
+    });
+    t += STEPS.length * 1500 + 300;
+
+    // encode unseen text with the learned merges
+    at(t, () => {
+      on('bEnc'); phase(3);
+      $('cmd').textContent = `bpe encode "${NEW_TEXT}"`;
+      log('encode', 'var(--violet)', `«${NEW_TEXT}» · таких слов в корпусе не было`);
+    });
+    const span = document.createElement('span');
+    at(t, () => { $('inTxt').innerHTML = ''; span.className = 'typing'; span.textContent = ''; $('inTxt').appendChild(span); });
+    [...NEW_TEXT].forEach((ch, i) => at(t + 100 + i * 60, () => span.textContent += ch));
+    t += 100 + NEW_TEXT.length * 60 + 300;
+    at(t, () => span.classList.remove('typing'));
+
+    const words = NEW_TEXT.split(' ');
+    const traces = words.map(encodeWord);
+    const maxSteps = Math.max(...traces.map(tr => tr.length));
+    const drawToks = (k, withIds) => {
+      $('toks').innerHTML = traces.map(tr => {
+        const sy = tr[Math.min(k, tr.length - 1)];
+        return sy.map(tok => {
+          const id = ID[tok];
+          return `<span class="tk ${withIds ? 'idv' : ''}" style="--h:${hue(id)}">${symHTML(tok)}<span class="id">${id}</span></span>`;
+        }).join('');
+      }).join('<span class="gap"></span>');
+    };
+    for (let k = 0; k < maxSteps; k++) at(t + k * 450, () => drawToks(k, false));
+    t += maxSteps * 450 + 200;
+
+    const finalToks = traces.map(tr => tr[tr.length - 1]);
+    const flat = finalToks.flat();
+    const chars = words.reduce((s, w) => s + w.length + 1, 0);
+    at(t, () => {
+      phase(4); drawToks(maxSteps - 1, true);
+      $('sC').textContent = `[${chars}]`; $('sT').textContent = `[${flat.length}]`;
+      const lw = finalToks[0].join(' + '), nw = finalToks[1].join(' + ');
+      $('encNote').innerHTML = `<b>${esc(words[0])}</b> собрано из знакомых кусков: ${esc(lw)}. У <b>${esc(words[1])}</b> известно только начало (${esc(finalToks[1][0])}), остальное разбито на мелкие куски. Незнакомое слово не теряется, а дробится мельче и занимает больше токенов. В реальных токенизаторах база — байты, поэтому так разбирается любой текст.`;
+      log('ids', 'var(--violet)', `[${flat.map(x => ID[x]).join(', ')}] · ${chars} симв → ${flat.length} токенов`);
+    });
+    t += 1600;
+
+    // embeddings: deterministic toy vectors per id
+    const vec = id => Array.from({length:8}, (_, j) => Math.sin(id * 12.9898 + j * 78.233) * .5 + Math.cos(id * 3.1 + j * 1.7) * .5);
+    at(t, () => {
+      on('bEmb'); phase(5);
+      $('cmd').textContent = 'embedding.lookup(ids)  # [токенов × d]';
+      $('emb').innerHTML = flat.map(tok => {
+        const id = ID[tok];
+        const cells = vec(id).map(v => {
+          const a = Math.min(1, Math.abs(v)), col = v >= 0 ? `rgba(111,211,214,${.15 + a * .75})` : `rgba(242,166,90,${.15 + a * .75})`;
+          return `<span class="cell" style="background:${col}" title="${v.toFixed(2)}"></span>`;
+        }).join('');
+        return `<div class="er"><span class="tn" style="color:hsl(${hue(id)} 60% 70%)">${esc(tok)}</span><span class="ii">${id}</span><span class="cells">${cells}</span></div>`;
+      }).join('');
+      [...$('emb').children].forEach((r, i) => setTimeout(() => r.classList.add('show'), i * 160));
+      log('embed', 'var(--green)', `${flat.length} id → матрица ${flat.length} × 8 → в модель`);
+    });
+    t += flat.length * 160 + 4200;
+    at(t, cycle);
+  }
+
+  if (reduce){
+    on('bCorpus','bPairs','bVocab','bEnc','bEmb');
+    const last = STEPS[STEPS.length - 1];
+    renderCorpus(last.after); renderPairs(last.pairs, true); renderVocab(VOCAB.length);
+    $('inTxt').textContent = NEW_TEXT;
+    $('toks').innerHTML = NEW_TEXT.split(' ').map(w => { const tr = encodeWord(w); return tr[tr.length - 1].map(tok => `<span class="tk idv" style="--h:${hue(ID[tok])}">${symHTML(tok)}<span class="id">${ID[tok]}</span></span>`).join(''); }).join('<span class="gap"></span>');
+  } else cycle();
+})();
+</script>
+
+</body>
+</html>

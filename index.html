@@ -10,7 +10,7 @@
 <style>
 :root{
   --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
-  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a;
+  --amber:#f2a65a; --cyan:#6fd3d6; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:dark;
 }
@@ -38,6 +38,12 @@ a.item:hover,a.item:focus-visible{border-color:var(--c);box-shadow:0 0 16px colo
 .desc{color:var(--dim);margin-top:5px;line-height:1.55;font-size:12px}
 .foot{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
 .foot b{color:var(--fg);font-weight:500}
+.series{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 16px;padding:12px 14px;border:1px solid var(--cyan);border-radius:4px;color:var(--fg);text-decoration:none;background:color-mix(in srgb,var(--cyan) 7%,transparent);transition:box-shadow .2s}
+.series:hover,.series:focus-visible{box-shadow:0 0 18px color-mix(in srgb,var(--cyan) 30%,transparent);outline:none}
+.series b{color:var(--cyan);font-weight:600;letter-spacing:.04em}
+.series small{display:block;color:var(--dim);font-size:11px;margin-top:3px}
+.series .go{color:var(--cyan);font-size:16px}
+.label{color:var(--dim);font-size:10.5px;letter-spacing:.08em;margin:0 0 8px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -48,6 +54,8 @@ a.item:hover,a.item:focus-visible{border-color:var(--c);box-shadow:0 0 16px colo
     <p class="cmd"><b>~/animations $</b> ls</p>
     <h1>ANIMATIONS TERMINAL</h1>
     <p class="sub">Анимированные схемы процессов в стиле терминала. Открой на телефоне и запиши экран.</p>
+    <a class="series" href="ai/"><span><b>AI ENGINEERING →</b><small>серия: как устроены LLM · tokenization готово</small></span><span class="go">›</span></a>
+    <p class="label">ОТДЕЛЬНЫЕ АНИМАЦИИ</p>
     <ul>
       <li>
         <a class="item" href="trading/" style="--c:var(--amber)">
