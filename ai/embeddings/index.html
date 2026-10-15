@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Как появляются эмбеддинги: skip-gram обучается прямо в браузере, и слова собираются в смысловые группы.">
+<title>Embeddings Word2Vec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; corpus window makes pairs, a live 2D projection of a skip-gram being trained, then nearest neighbours and the raw vectors */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+
+.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.ph{border:1px solid var(--line);text-align:center;padding:4px 0 3px;color:var(--dim);font-size:9.5px;white-space:nowrap;overflow:hidden;transition:all .3s}
+.ph.now{border-color:var(--cyan);color:var(--fg);box-shadow:0 0 12px rgba(111,211,214,.3)}
+.ph.done{color:var(--fg)}
+
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;transition:opacity .4s,box-shadow .4s;opacity:.4}
+.box.on{opacity:1;box-shadow:0 0 16px color-mix(in srgb,var(--c) 20%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+
+/* window over a sentence */
+.sent{display:flex;flex-wrap:wrap;gap:4px;min-height:24px;margin-bottom:6px}
+.w{padding:2px 6px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;transition:all .2s}
+.w.c{border-color:var(--cyan);background:rgba(111,211,214,.2);color:#fff}
+.w.x{border-color:var(--amber);background:rgba(242,166,90,.14)}
+.pairs{display:flex;flex-wrap:wrap;gap:3px 6px;min-height:36px;align-content:flex-start;font-size:10.5px}
+.pr{color:var(--dim);white-space:nowrap;animation:fade .3s}
+.pr b{color:var(--cyan);font-weight:500} .pr i{color:var(--amber);font-style:normal}
+@keyframes fade{from{opacity:0}}
+
+/* plot */
+.plotwrap{position:relative;height:270px;border:1px solid var(--line);background:
+  linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 25%,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/25% 100%;background-color:#0d0e17}
+canvas{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;font-size:10px;color:var(--dim)}
+.legend span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:var(--c)}
+.meter{display:grid;grid-template-columns:52px 1fr 64px;gap:8px;align-items:center;line-height:1.8;font-variant-numeric:tabular-nums;margin-top:4px}
+.track{height:7px;background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.fill{height:100%;width:0;background:var(--cyan)}
+.meter b{text-align:right;font-weight:500}
+
+/* neighbours */
+.nq{display:grid;grid-template-columns:54px 1fr;gap:8px;line-height:1.75;opacity:.3;transition:opacity .3s;font-variant-numeric:tabular-nums}
+.nq.on{opacity:1}
+.nq .q{font-weight:600}
+.nl{display:flex;flex-wrap:wrap;gap:2px 10px;min-width:0}
+.nl span{white-space:nowrap}
+.nl em{font-style:normal;color:var(--dim)}
+
+/* vectors */
+.vr{display:grid;grid-template-columns:40px 1fr;gap:8px;align-items:center;margin-bottom:4px}
+.cells{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
+.cell{height:22px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8.5px;color:#0a0b12;font-variant-numeric:tabular-nums;font-weight:500}
+.cosline{margin-top:4px;line-height:1.7;font-variant-numeric:tabular-nums}
+.cosline b{color:var(--green);font-weight:600}
+
+.log{border:1px solid var(--line);border-radius:4px;padding:7px 9px 5px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:3px}
+.ll{display:grid;grid-template-columns:54px 1fr;gap:6px;font-size:10.5px;line-height:1.7;opacity:0;transition:opacity .3s;white-space:nowrap}
+.ll.show{opacity:1}
+.ll .who{color:var(--c)} .ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+.status{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:10.5px;color:var(--dim);padding:0 0 3px;font-variant-numeric:tabular-nums}
+.status b{color:var(--fg);font-weight:500}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — embeddings — skip-gram</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>02 / концепции</span></div>
+    <h1>EMBEDDINGS · <b>СМЫСЛ КАК КООРДИНАТЫ</b></h1>
+    <p class="lead">Каждому токену соответствует строка чисел. Сначала числа случайные. Обучение двигает их так, чтобы слова, которые встречаются в похожем окружении, оказались рядом.</p>
+
+    <div class="phases">
+      <div class="ph">контекст</div><div class="ph">пары</div><div class="ph">обучение</div><div class="ph">соседи</div><div class="ph">векторы</div>
+    </div>
+
+    <div class="box" id="bCtx" style="--c:var(--amber)">
+      <div class="hd">01 · окно контекста ±2 <small id="sentNo">предложение 1/–</small></div>
+      <div class="sent" id="sent"></div>
+      <div class="pairs" id="pairs"></div>
+      <div class="note">Центральное слово <b style="color:var(--cyan)">учится предсказывать</b> соседей в окне. Каждая пара (центр, сосед) — один обучающий пример.</div>
+    </div>
+
+    <div class="box" id="bPlot" style="--c:var(--cyan)">
+      <div class="hd">02 · пространство эмбеддингов <small>проекция 8D → 2D</small></div>
+      <div class="plotwrap"><canvas id="cv"></canvas></div>
+      <div class="legend">
+        <span style="--c:var(--amber)">животные</span><span style="--c:var(--green)">еда</span><span style="--c:var(--blue)">транспорт</span><span style="--c:var(--violet)">места</span>
+      </div>
+      <div class="meter"><span class="k">эпоха</span><div class="track"><div class="fill" id="epFill"></div></div><b id="epTxt">0/300</b></div>
+      <div class="meter"><span class="k">loss</span><div class="track"><div class="fill" id="lossFill" style="background:var(--amber)"></div></div><b id="lossTxt">–</b></div>
+      <div class="note">Цвет групп — подсказка для нас. Модели группы никто не сообщал: она видит только пары слов.</div>
+    </div>
+
+    <div class="box" id="bNN" style="--c:var(--green)">
+      <div class="hd">03 · ближайшие соседи <small>cos в 8D</small></div>
+      <div id="nn"></div>
+    </div>
+
+    <div class="box" id="bVec" style="--c:var(--violet)">
+      <div class="hd">04 · что внутри: 8 чисел на слово <small>обученные</small></div>
+      <div id="vecs"></div>
+      <div class="cosline" id="cosline"></div>
+      <div class="note">Это та самая таблица эмбеддингов из шага токенизации, только теперь обученная. Близость считается по косинусу: 1 — смотрят в одну сторону, 0 — не связаны.</div>
+    </div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">word2vec --mode skipgram --dim 8 --window 2 --neg 3</span></div>
+    <div class="status">
+      <span>слов <b id="sV">[–]</b></span>
+      <span>пар <b id="sP">[0]</b></span>
+      <span>эпоха <b id="sE">[0]</b></span>
+      <span>loss <b id="sL">[–]</b></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ---------- corpus ----------
+  const G = {
+    animal:{words:['cat','dog','fox'], c:'--amber'},
+    food:{words:['fish','meat','bread'], c:'--green'},
+    transport:{words:['bus','train','tram'], c:'--blue'},
+    place:{words:['city','town','village'], c:'--violet'},
+  };
+  const A = G.animal.words, F = G.food.words, T = G.transport.words, P = G.place.words;
+  const S = [];
+  for (const a of A){ for (const f of F) S.push([a,'eats',f]); S.push([a,'sleeps','at','home']); S.push([a,'runs','fast']); }
+  for (const f of F) S.push(['fresh',f,'tastes','good']);
+  for (const t of T){ for (const p of P) S.push([t,'goes','to',p]); S.push([t,'carries','people']); }
+  for (const p of P){ S.push(['people','live','in',p]); S.push(['the',p,'is','big']); }
+
+  const V = [...new Set(S.flat())], IX = Object.fromEntries(V.map((w, i) => [w, i]));
+  const GROUP = {}; Object.entries(G).forEach(([g, o]) => o.words.forEach(w => GROUP[w] = g));
+  const SHOWN = Object.values(G).flatMap(o => o.words);
+  const WIN = 2, D = 8, EPOCHS = 300, NEG = 3, LR = .08;
+  const PAIRS = [];
+  for (const s of S) for (let i = 0; i < s.length; i++)
+    for (let j = Math.max(0, i - WIN); j <= Math.min(s.length - 1, i + WIN); j++) if (i !== j) PAIRS.push([IX[s[i]], IX[s[j]]]);
+
+  // ---------- skip-gram with negative sampling (seeded, so every loop is identical) ----------
+  function rng(seed){ let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const sig = x => 1 / (1 + Math.exp(-x));
+  const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+  const cos = (a, b) => dot(a, b) / Math.hypot(...a) / Math.hypot(...b);
+  let R, Win, Wout, pairs;
+  function init(){
+    R = rng(7);
+    Win = V.map(() => Array.from({length:D}, () => (R() - .5) * .5));
+    Wout = V.map(() => Array.from({length:D}, () => (R() - .5) * .5));
+    pairs = PAIRS.map(p => [...p]);
+  }
+  function epoch(){
+    for (let i = pairs.length - 1; i > 0; i--){ const j = Math.floor(R() * (i + 1)); [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
+    let loss = 0;
+    for (const [c, o] of pairs){
+      const g = new Array(D).fill(0);
+      const upd = (t, label) => {
+        const s = sig(dot(Win[c], Wout[t]));
+        loss -= Math.log(label ? Math.max(s, 1e-9) : Math.max(1 - s, 1e-9));
+        const e = (label - s) * LR;
+        for (let d = 0; d < D; d++){ g[d] += e * Wout[t][d]; Wout[t][d] += e * Win[c][d]; }
+      };
+      upd(o, 1);
+      for (let k = 0; k < NEG; k++){ const n = Math.floor(R() * V.length); if (n !== o && n !== c) upd(n, 0); }
+      for (let d = 0; d < D; d++) Win[c][d] += g[d];
+    }
+    return loss / pairs.length;
+  }
+
+  // ---------- PCA 8D → 2D for the plot, with sign kept stable between frames ----------
+  let prevPC = null;
+  function pca(rows){
+    const n = rows.length, mean = new Array(D).fill(0);
+    rows.forEach(r => r.forEach((v, d) => mean[d] += v / n));
+    const X = rows.map(r => r.map((v, d) => v - mean[d]));
+    const C = Array.from({length:D}, (_, i) => Array.from({length:D}, (_, j) => X.reduce((s, r) => s + r[i] * r[j], 0) / n));
+    const pcs = [];
+    for (let k = 0; k < 2; k++){
+      let v = Array.from({length:D}, (_, i) => Math.sin(i + 1 + k * 3));
+      for (let it = 0; it < 60; it++){
+        let w = C.map(row => dot(row, v));
+        pcs.forEach(p => { const pr = dot(w, p); w = w.map((x, i) => x - pr * p[i]); });
+        const nr = Math.hypot(...w) || 1; v = w.map(x => x / nr);
+      }
+      if (prevPC && dot(v, prevPC[k]) < 0) v = v.map(x => -x);
+      pcs.push(v);
+    }
+    prevPC = pcs;
+    return X.map(r => [dot(r, pcs[0]), dot(r, pcs[1])]);
+  }
+
+  // ---------- canvas ----------
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let view = null, highlight = null;
+  function size(){ const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+  function draw(){
+    const r = cv.getBoundingClientRect(), W = r.width, H = r.height;
+    ctx.clearRect(0, 0, W, H);
+    const pts = pca(SHOWN.map(w => Win[IX[w]]));
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    pts.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+    const target = {cx:(x0 + x1) / 2, cy:(y0 + y1) / 2, s:Math.max(x1 - x0, y1 - y0, 1e-3)};
+    view = view ? {cx:view.cx + (target.cx - view.cx) * .15, cy:view.cy + (target.cy - view.cy) * .15, s:view.s + (target.s - view.s) * .15} : target;
+    const k = Math.min(W - 70, H - 40) / view.s;
+    const P2 = pts.map(([x, y]) => [W / 2 + (x - view.cx) * k, H / 2 - (y - view.cy) * k]);
+
+    if (highlight){
+      const qi = SHOWN.indexOf(highlight.q);
+      highlight.nn.forEach(([w]) => {
+        const j = SHOWN.indexOf(w); if (j < 0) return;
+        ctx.strokeStyle = css('--green'); ctx.globalAlpha = .7; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(...P2[qi]); ctx.lineTo(...P2[j]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      });
+    }
+    const placed = [];
+    ctx.font = '11px "IBM Plex Mono", monospace';
+    SHOWN.forEach((w, i) => {
+      const [x, y] = P2[i], col = css(G[GROUP[w]].c);
+      const isQ = highlight && highlight.q === w;
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, isQ ? 6 : 4, 0, 7); ctx.fill();
+      if (isQ){ ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+      const tw = ctx.measureText(w).width;
+      let lx = x + 7, ly = y + 4;
+      if (lx + tw > W - 4) lx = x - 7 - tw;
+      for (let tries = 0; tries < 4; tries++){
+        const hit = placed.some(b => lx < b.x + b.w && lx + tw > b.x && ly - 10 < b.y && ly > b.y - 10);
+        if (!hit) break; ly += 11;
+      }
+      placed.push({x:lx, y:ly, w:tw});
+      ctx.fillStyle = isQ ? '#fff' : col; ctx.globalAlpha = isQ || !highlight ? 1 : .75;
+      ctx.fillText(w, lx, ly); ctx.globalAlpha = 1;
+    });
+  }
+
+  // ---------- ui helpers ----------
+  let timers = [], trainTimer = null;
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  const phase = i => document.querySelectorAll('.ph').forEach((p, k) => { p.classList.toggle('now', k === i); p.classList.toggle('done', k < i); });
+  const on = (...ids) => ids.forEach(id => $(id).classList.add('on'));
+  const off = (...ids) => ids.forEach(id => $(id).classList.remove('on'));
+  const neighbours = (w, n = 3) => V.filter(x => x !== w).map(x => [x, cos(Win[IX[w]], Win[IX[x]])]).sort((a, b) => b[1] - a[1]).slice(0, n);
+  const colOf = w => GROUP[w] ? `var(${G[GROUP[w]].c})` : 'var(--dim)';
+
+  // ---------- timeline ----------
+  const DEMO = [0, 18, 30];   // a few sentences to show the window on
+  function cycle(){
+    timers.forEach(clearTimeout); timers = []; clearInterval(trainTimer);
+    init(); prevPC = null; view = null; highlight = null; size(); draw();
+    off('bPlot','bNN','bVec'); on('bCtx'); phase(0);
+    $('logs').innerHTML = ''; $('pairs').innerHTML = ''; $('nn').innerHTML = ''; $('vecs').innerHTML = ''; $('cosline').innerHTML = '';
+    $('epFill').style.width = '0'; $('lossFill').style.width = '0'; $('epTxt').textContent = `0/${EPOCHS}`; $('lossTxt').textContent = '–';
+    $('sV').textContent = `[${V.length}]`; $('sP').textContent = '[0]'; $('sE').textContent = '[0]'; $('sL').textContent = '[–]';
+    $('cmd').textContent = `word2vec --mode skipgram --dim ${D} --window ${WIN} --neg ${NEG}`;
+    log('corpus', 'var(--amber)', `${S.length} предложений · ${V.length} уникальных слов`);
+
+    let t = 300, shown = 0;
+    DEMO.forEach((si, n) => {
+      const s = S[si];
+      at(t, () => {
+        $('sentNo').textContent = `предложение ${si + 1}/${S.length}`;
+        $('sent').innerHTML = s.map(w => `<span class="w">${w}</span>`).join('');
+        if (n === 0) $('pairs').innerHTML = '';
+      });
+      s.forEach((w, i) => {
+        at(t + 250 + i * 520, () => {
+          [...$('sent').children].forEach((el, j) => el.className = 'w' + (j === i ? ' c' : Math.abs(j - i) <= WIN ? ' x' : ''));
+          for (let j = Math.max(0, i - WIN); j <= Math.min(s.length - 1, i + WIN); j++){
+            if (j === i) continue;
+            shown++;
+            if ($('pairs').children.length > 11) $('pairs').removeChild($('pairs').firstChild);
+            $('pairs').insertAdjacentHTML('beforeend', `<span class="pr">(<b>${w}</b>, <i>${s[j]}</i>)</span>`);
+          }
+          $('sP').textContent = `[${shown}]`;
+        });
+      });
+      t += 250 + s.length * 520 + 200;
+    });
+
+    at(t, () => {
+      phase(1); on('bPlot');
+      $('pairs').innerHTML = `<span class="pr">… и так по всем ${S.length} предложениям → <b>${PAIRS.length}</b> пар</span>`;
+      $('sP').textContent = `[${PAIRS.length}]`;
+      log('pairs', 'var(--amber)', `${PAIRS.length} пар (центр, сосед) · окно ±${WIN}`);
+      log('init', 'var(--cyan)', `таблица ${V.length} × ${D} случайных чисел`);
+      draw();
+    });
+    t += 1300;
+
+    // training: one epoch every 34ms, plotted live
+    let firstLoss = null;
+    at(t, () => {
+      phase(2); off('bCtx');
+      $('cmd').textContent = `train --epochs ${EPOCHS} --lr ${LR}`;
+      let ep = 0;
+      trainTimer = setInterval(() => {
+        const loss = epoch(); ep++;
+        if (firstLoss === null) firstLoss = loss;
+        draw();
+        $('epFill').style.width = `${ep / EPOCHS * 100}%`; $('epTxt').textContent = `${ep}/${EPOCHS}`;
+        $('lossFill').style.width = `${Math.min(1, loss / firstLoss) * 100}%`; $('lossTxt').textContent = loss.toFixed(3);
+        $('sE').textContent = `[${ep}]`; $('sL').textContent = `[${loss.toFixed(2)}]`;
+        if (ep === 1 || ep === 50 || ep === 150) log('train', 'var(--cyan)', `эпоха ${ep} · loss ${loss.toFixed(3)}`);
+        if (ep >= EPOCHS){
+          clearInterval(trainTimer);
+          log('train', 'var(--green)', `готово · loss ${firstLoss.toFixed(2)} → ${loss.toFixed(2)}`);
+          afterTraining();
+        }
+      }, 34);
+    });
+  }
+
+  function afterTraining(){
+    let t = 400;
+    const QUERIES = ['cat', 'bread', 'bus', 'village'];
+    at(t, () => {
+      phase(3); on('bNN');
+      $('cmd').textContent = 'nearest --metric cosine --k 3';
+      $('nn').innerHTML = QUERIES.map(q => `<div class="nq" data-q="${q}"><span class="q" style="color:${colOf(q)}">${q}</span><span class="nl"></span></div>`).join('');
+    });
+    QUERIES.forEach((q, i) => {
+      at(t + 300 + i * 1500, () => {
+        const nn = neighbours(q);
+        highlight = {q, nn}; draw();
+        const row = $('nn').querySelector(`[data-q="${q}"]`);
+        row.classList.add('on');
+        row.querySelector('.nl').innerHTML = nn.map(([w, c]) => `<span style="color:${colOf(w)}">${w} <em>${c.toFixed(2)}</em></span>`).join('');
+        log('nn', 'var(--green)', `${q} → ${nn.map(([w, c]) => `${w} ${c.toFixed(2)}`).join(' · ')}`);
+      });
+    });
+    t += 300 + QUERIES.length * 1500 + 200;
+
+    at(t, () => {
+      phase(4); on('bVec'); highlight = {q:'cat', nn:[['dog', 0]]}; draw();
+      $('cmd').textContent = 'embedding["cat"], embedding["dog"], embedding["bus"]';
+      const rows = ['cat', 'dog', 'bus'].map(w => {
+        const v = Win[IX[w]], m = Math.max(...v.map(Math.abs));
+        const cells = v.map(x => {
+          const a = Math.abs(x) / m, bg = x >= 0 ? `rgba(111,211,214,${.25 + a * .7})` : `rgba(242,166,90,${.25 + a * .7})`;
+          return `<span class="cell" style="background:${bg}">${x.toFixed(1)}</span>`;
+        }).join('');
+        return `<div class="vr"><span style="color:${colOf(w)};font-weight:600">${w}</span><span class="cells">${cells}</span></div>`;
+      }).join('');
+      $('vecs').innerHTML = rows;
+      const cd = cos(Win[IX.cat], Win[IX.dog]), cb = cos(Win[IX.cat], Win[IX.bus]);
+      $('cosline').innerHTML = `cos(cat, dog) = <b>${cd.toFixed(2)}</b> &nbsp;·&nbsp; cos(cat, bus) = <b style="color:var(--amber)">${cb.toFixed(2)}</b>`;
+      log('cos', 'var(--violet)', `cat·dog ${cd.toFixed(2)} · cat·bus ${cb.toFixed(2)}`);
+    });
+    t += 5200;
+    at(t, cycle);
+  }
+
+  addEventListener('resize', () => { size(); draw(); });
+  if (reduce){
+    init(); size(); for (let i = 0; i < EPOCHS; i++) epoch();
+    on('bCtx','bPlot','bNN','bVec'); draw();
+    $('nn').innerHTML = ['cat','bread','bus','village'].map(q => `<div class="nq on"><span class="q" style="color:${colOf(q)}">${q}</span><span class="nl">${neighbours(q).map(([w, c]) => `<span style="color:${colOf(w)}">${w} <em>${c.toFixed(2)}</em></span>`).join('')}</span></div>`).join('');
+  } else cycle();
+})();
+</script>
+
+</body>
+</html>
