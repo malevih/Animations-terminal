@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Как работает self-attention: Q·K, causal mask, softmax и смешивание V на настоящей математике.">
+<title>Attention Step by Step</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; token row, then one query worked through (scores → mask → softmax → mix), then the full causal attention matrix */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+
+.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.ph{border:1px solid var(--line);text-align:center;padding:4px 0 3px;color:var(--dim);font-size:9.5px;white-space:nowrap;overflow:hidden;transition:all .3s}
+.ph.now{border-color:var(--cyan);color:var(--fg);box-shadow:0 0 12px rgba(111,211,214,.3)}
+.ph.done{color:var(--fg)}
+
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;transition:opacity .4s,box-shadow .4s;opacity:.4}
+.box.on{opacity:1;box-shadow:0 0 16px color-mix(in srgb,var(--c) 20%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+.formula{color:var(--fg);font-size:11px;margin-bottom:6px;white-space:nowrap;overflow-x:auto}
+.formula i{font-style:normal;color:var(--cyan)}
+
+/* tokens */
+.toks{display:flex;flex-wrap:wrap;gap:6px 4px}
+.tok{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 6px 2px;border:1px solid var(--line);border-radius:3px;transition:all .35s;background:rgba(242,166,90,var(--w,0))}
+.tok .t{font-size:12.5px}
+.tok .n{font-size:8.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+.tok.q{border-color:var(--cyan);background:rgba(111,211,214,.22);box-shadow:0 0 10px rgba(111,211,214,.35)}
+.tok.key{border-color:rgba(242,166,90,calc(.25 + var(--w,0)))}
+.tok.masked{opacity:.3;border-style:dashed}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;font-size:9.5px;color:var(--dim)}
+.tags span{border:1px solid var(--line);padding:0 4px;border-radius:2px}
+
+/* score rows */
+.rows{display:grid;gap:1px}
+.row{display:grid;grid-template-columns:58px 44px 1fr 38px;gap:6px;align-items:center;line-height:1.75;font-variant-numeric:tabular-nums;transition:opacity .3s}
+.row .s{text-align:right;color:var(--dim)}
+.row .s.hit{color:var(--fg)}
+.row .t2{height:8px;background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.row .f{height:100%;width:0;background:var(--amber);transition:width .6s ease-out}
+.row b{text-align:right;font-weight:500}
+.row.masked{opacity:.35}
+.row.masked .s{color:var(--red)}
+.row.top b,.row.top .w,.row.top>span:first-child{color:var(--amber);opacity:1}
+
+/* output vector */
+.vec{display:grid;grid-template-columns:58px 1fr 1fr;gap:4px 8px;align-items:center;font-variant-numeric:tabular-nums}
+.vec .h{color:var(--dim);font-size:10px}
+.cellbar{display:flex;align-items:center;gap:6px}
+.cellbar .b{height:8px;background:var(--c);width:0;transition:width .6s}
+.cellbar .v{font-size:10.5px;min-width:30px}
+
+/* matrix */
+.mwrap{overflow-x:auto}
+.matrix{display:grid;grid-template-columns:52px repeat(10,1fr);gap:2px;min-width:300px}
+.matrix .lab{font-size:10px;color:var(--dim);display:flex;align-items:center;justify-content:flex-end;padding-right:4px;white-space:nowrap}
+.matrix .col{font-size:9px;color:var(--dim);text-align:center}
+.mc{aspect-ratio:1;border-radius:2px;background:#151726;display:flex;align-items:center;justify-content:center;font-size:8px;color:#0a0b12;font-variant-numeric:tabular-nums;transition:background .3s}
+.mc.mask{background:repeating-linear-gradient(135deg,#1a1c2b 0 2px,transparent 2px 5px)}
+.matrix .lab.hl{color:var(--cyan)}
+.mc.hl{outline:1px solid var(--cyan)}
+
+.log{border:1px solid var(--line);border-radius:4px;padding:7px 9px 5px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:3px}
+.ll{display:grid;grid-template-columns:54px 1fr;gap:6px;font-size:10.5px;line-height:1.7;opacity:0;transition:opacity .3s;white-space:nowrap}
+.ll.show{opacity:1}
+.ll .who{color:var(--c)} .ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+.status{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:10.5px;color:var(--dim);padding:0 0 3px;font-variant-numeric:tabular-nums}
+.status b{color:var(--fg);font-weight:500}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — attention — 1 head</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>03 / концепции</span></div>
+    <h1>ATTENTION · <b>НА КОГО СМОТРИТ ТОКЕН</b></h1>
+    <p class="lead">Эмбеддинг слова «it» ничего не знает о кошке. Attention даёт каждому токену посмотреть на предыдущие и подмешать к себе то, что ему нужно.</p>
+
+    <div class="phases">
+      <div class="ph">Q K V</div><div class="ph">Q·K</div><div class="ph">маска</div><div class="ph">softmax</div><div class="ph">смесь</div>
+    </div>
+
+    <div class="box on" id="bTok" style="--c:var(--cyan)">
+      <div class="hd">01 · токены <small id="qLabel">каждый получает Q, K, V</small></div>
+      <div class="toks" id="toks"></div>
+      <div class="tags" id="tags"></div>
+      <div class="note"><b style="color:var(--cyan)">Q</b> — что токен ищет · <b style="color:var(--amber)">K</b> — чем токен может быть полезен · <b style="color:var(--green)">V</b> — что он отдаст, если на него посмотрят.</div>
+    </div>
+
+    <div class="box" id="bScore" style="--c:var(--amber)">
+      <div class="hd">02 · счёт и веса для «<span id="qName">it</span>» <small>softmax(Q·Kᵀ / √d)</small></div>
+      <div class="formula" id="formula">score = <i>q</i> · k / √2</div>
+      <div class="rows" id="rows"></div>
+      <div class="note" id="scoreNote">Маска: токен видит только себя и тех, кто был раньше. Будущие слова получают −∞, после softmax их вес 0.</div>
+    </div>
+
+    <div class="box" id="bOut" style="--c:var(--green)">
+      <div class="hd">03 · вектор «it» до и после <small>x + Σ wᵢ·vᵢ</small></div>
+      <div class="vec" id="vec"></div>
+      <div class="note" id="outNote"></div>
+    </div>
+
+    <div class="box" id="bMat" style="--c:var(--violet)">
+      <div class="hd">04 · вся матрица внимания <small>строка = кто смотрит</small></div>
+      <div class="mwrap"><div class="matrix" id="matrix"></div></div>
+      <div class="note">Треугольник: каждая строка распределяет 100% внимания по себе и предыдущим токенам. Глаголы и прилагательные тянутся к <b>cat</b>, служебные слова смотрят на всех понемногу.</div>
+    </div>
+
+    <div class="note" style="margin-top:-2px">Вычисления на странице настоящие. Веса W<sub>Q</sub> и W<sub>K</sub> заданы вручную, чтобы механизм было видно, а W<sub>V</sub> — единичная матрица. В реальной модели их подбирает обучение, признаки не имеют человеческих названий, а голов внимания десятки на каждом слое.</div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">attention(x, causal=True, heads=1)</span></div>
+    <div class="status">
+      <span>токенов <b>[10]</b></span>
+      <span>d<sub>k</sub> <b>[2]</b></span>
+      <span>запрос <b id="sQ">[–]</b></span>
+      <span>макс вес <b id="sW">[–]</b></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- the model: features, hand-set weights, real math ----------
+  const TOK = ['the','cat','sat','on','the','mat','because','it','was','tired'];
+  const FEAT = ['noun','animate','verb','func','pron','state'];
+  const FEAT_RU = {noun:'сущ.', animate:'живое', verb:'глагол', func:'служ.', pron:'местоим.', state:'состояние'};
+  const E = {the:[0,0,0,1,0,0], cat:[1,1,0,0,0,0], sat:[0,0,1,0,0,0], on:[0,0,0,1,0,0], mat:[1,0,0,0,0,0], because:[0,0,0,1,0,0], it:[0,0,0,0,1,0], was:[0,0,1,0,0,0], tired:[0,0,0,0,0,1]};
+  // W_Q: what each feature makes the token look for → [wants noun, wants animate]
+  const WQ = [[0,0],[0,0],[2,.5],[0,0],[2.2,1.4],[1,3]];
+  // W_K: what each feature advertises → [is noun, is animate]
+  const WK = [[1,0],[0,1],[0,0],[0,0],[0,0],[0,0]];
+  const DK = 2;
+  const mm = (x, W) => W[0].map((_, j) => x.reduce((s, v, i) => s + v * W[i][j], 0));
+  const X = TOK.map(t => E[t]);
+  const Q = X.map(x => mm(x, WQ)), K = X.map(x => mm(x, WK)), Vv = X;   // W_V = I
+  const SCORES = Q.map((q, i) => K.map((k, j) => j <= i ? (q[0] * k[0] + q[1] * k[1]) / Math.sqrt(DK) : -Infinity));
+  const softmax = s => { const m = Math.max(...s), e = s.map(v => Math.exp(v - m)), z = e.reduce((a, b) => a + b); return e.map(v => v / z); };
+  const ATT = SCORES.map(softmax);
+  const mix = i => ATT[i].reduce((acc, w, j) => acc.map((a, d) => a + w * Vv[j][d]), new Array(FEAT.length).fill(0));
+
+  // ---------- ui ----------
+  let timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  const phase = i => document.querySelectorAll('.ph').forEach((p, k) => { p.classList.toggle('now', k === i); p.classList.toggle('done', k < i); });
+  const on = (...ids) => ids.forEach(id => $(id).classList.add('on'));
+  const off = (...ids) => ids.forEach(id => $(id).classList.remove('on'));
+  const fmt = v => v === -Infinity ? '−∞' : v.toFixed(2);
+
+  $('toks').innerHTML = TOK.map((t, i) => `<div class="tok" data-i="${i}"><span class="t">${t}</span><span class="n">${i + 1}</span></div>`).join('');
+  const tokEls = [...$('toks').children];
+
+  // matrix skeleton
+  $('matrix').innerHTML = '<span></span>' + TOK.map((_, j) => `<span class="col">${j + 1}</span>`).join('') +
+    TOK.map((t, i) => `<span class="lab" data-r="${i}">${t}</span>` + TOK.map((_, j) => `<span class="mc ${j > i ? 'mask' : ''}" data-r="${i}" data-c="${j}"></span>`).join('')).join('');
+  const cell = (i, j) => $('matrix').querySelector(`.mc[data-r="${i}"][data-c="${j}"]`);
+  const heat = w => `rgba(182,156,255,${.12 + w * .88})`;
+
+  function clearTok(){ tokEls.forEach(el => { el.className = 'tok'; el.style.setProperty('--w', 0); }); }
+
+  function focusQuery(qi, T0, detailed){
+    let t = T0;
+    const name = TOK[qi];
+    at(t, () => {
+      phase(1); on('bScore'); clearTok();
+      tokEls[qi].classList.add('q');
+      tokEls.forEach((el, j) => { if (j <= qi && j !== qi) el.classList.add('key'); });
+      $('qName').textContent = name; $('qLabel').textContent = `запрос: «${name}»`; $('sQ').textContent = `[${name}]`;
+      const q = Q[qi];
+      $('formula').innerHTML = `q(${name}) = [<i>${q[0].toFixed(1)}</i>, <i>${q[1].toFixed(1)}</i>] · ищу: сущ. ${q[0].toFixed(1)}, живое ${q[1].toFixed(1)}`;
+      $('rows').innerHTML = TOK.map((tk, j) => `<div class="row" data-j="${j}"><span>${tk}</span><span class="s">…</span><span class="t2"><span class="f" style="display:block"></span></span><b class="w"></b></div>`).join('');
+      $('cmd').textContent = `scores = q[${qi}] @ K.T / sqrt(${DK})`;
+    });
+    const rows = () => [...$('rows').children];
+    const step = detailed ? 230 : 90;
+    TOK.forEach((_, j) => at(t + 300 + j * step, () => {
+      const r = rows()[j], s = SCORES[qi][j];
+      if (j > qi){ r.querySelector('.s').textContent = '·'; return; }
+      r.querySelector('.s').textContent = fmt(s);
+      if (s > 0) r.querySelector('.s').classList.add('hit');
+    }));
+    t += 300 + TOK.length * step + (detailed ? 300 : 100);
+
+    at(t, () => {
+      phase(2);
+      rows().forEach((r, j) => { if (j > qi){ r.classList.add('masked'); r.querySelector('.s').textContent = '−∞'; } });
+      tokEls.forEach((el, j) => { if (j > qi) el.classList.add('masked'); });
+      log('mask', 'var(--red)', `${name}: будущие токены ${qi < 9 ? TOK.slice(qi + 1).join(', ') : '—'} → −∞`);
+    });
+    t += detailed ? 900 : 300;
+
+    at(t, () => {
+      phase(3);
+      const w = ATT[qi], best = w.indexOf(Math.max(...w));
+      rows().forEach((r, j) => {
+        r.querySelector('.f').style.width = `${w[j] * 100}%`;
+        r.querySelector('.w').textContent = j <= qi ? `${Math.round(w[j] * 100)}%` : '0%';
+        r.classList.toggle('top', j === best);
+      });
+      tokEls.forEach((el, j) => el.style.setProperty('--w', j <= qi && j !== qi ? (w[j] * .9).toFixed(2) : 0));
+      $('sW').textContent = `[${TOK[best]} ${w[best].toFixed(2)}]`;
+      $('cmd').textContent = `weights = softmax(scores)  # сумма = ${w.reduce((a, b) => a + b).toFixed(2)}`;
+      log('softmax', 'var(--amber)', `${name} → ${w.map((x, j) => [TOK[j], x]).filter(([, x]) => x > .1).sort((a, b) => b[1] - a[1]).map(([tk, x]) => `${tk} ${x.toFixed(2)}`).join(' · ')}`);
+    });
+    return t + (detailed ? 1600 : 900);
+  }
+
+  function showOutput(qi, T0){
+    const x = X[qi], m = mix(qi), after = x.map((v, d) => v + m[d]);
+    at(T0, () => {
+      phase(4); on('bOut');
+      $('cmd').textContent = `out = weights @ V ; x = x + out  # residual`;
+      $('vec').innerHTML = '<span class="h">признак</span><span class="h">до</span><span class="h">после attention</span>' +
+        FEAT.map((f, d) => `<span>${FEAT_RU[f]}</span>
+          <span class="cellbar" style="--c:var(--dim)"><span class="b" style="width:${x[d] * 50}%"></span><span class="v">${x[d].toFixed(2)}</span></span>
+          <span class="cellbar" style="--c:${f === 'animate' || f === 'noun' ? 'var(--green)' : 'var(--dim)'}"><span class="b" data-w="${Math.min(after[d], 2) * 50}"></span><span class="v">${after[d].toFixed(2)}</span></span>`).join('');
+      $('outNote').innerHTML = '';
+    });
+    at(T0 + 500, () => {
+      $('vec').querySelectorAll('.b[data-w]').forEach(b => b.style.width = b.dataset.w + '%');
+      const a = after[FEAT.indexOf('animate')], n = after[FEAT.indexOf('noun')];
+      $('outNote').innerHTML = `До attention у «it» был только признак «местоимение». После в нём появились «живое» <b>${a.toFixed(2)}</b> и «сущ.» <b>${n.toFixed(2)}</b>: информация пришла в основном от <b>cat</b>. Следующие слои уже работают с «it, который про кошку».`;
+      log('mix', 'var(--green)', `it: живое 0.00 → ${a.toFixed(2)} · сущ. 0.00 → ${n.toFixed(2)}`);
+    });
+    return T0 + 3800;
+  }
+
+  function fillMatrix(T0){
+    at(T0, () => {
+      on('bMat'); clearTok(); phase(0);
+      $('cmd').textContent = 'A = softmax(Q @ K.T / sqrt(d) + mask)  # 10 × 10';
+      $('qLabel').textContent = 'все запросы сразу';
+      log('matrix', 'var(--violet)', 'считаю все 10 строк параллельно');
+    });
+    TOK.forEach((_, i) => at(T0 + 300 + i * 220, () => {
+      ATT[i].forEach((w, j) => { if (j <= i){ const c = cell(i, j); c.style.background = heat(w); c.textContent = w >= .3 ? Math.round(w * 100) : ''; } });
+      tokEls.forEach(el => el.classList.remove('q')); tokEls[i].classList.add('q');
+    }));
+    const t = T0 + 300 + TOK.length * 220 + 300;
+    at(t, () => {
+      tokEls.forEach(el => el.classList.remove('q'));
+      const hl = 9;
+      $('matrix').querySelector(`.lab[data-r="${hl}"]`).classList.add('hl');
+      ATT[hl].forEach((_, j) => cell(hl, j).classList.add('hl'));
+      tokEls[hl].classList.add('q'); tokEls[1].style.setProperty('--w', ATT[hl][1].toFixed(2)); tokEls[1].classList.add('key');
+      log('matrix', 'var(--violet)', `tired → cat ${ATT[9][1].toFixed(2)} · sat → cat ${ATT[2][1].toFixed(2)}`);
+    });
+    return t + 3500;
+  }
+
+  function cycle(){
+    timers.forEach(clearTimeout); timers = [];
+    off('bScore','bOut','bMat'); clearTok(); phase(0);
+    $('logs').innerHTML = ''; $('rows').innerHTML = ''; $('vec').innerHTML = ''; $('outNote').innerHTML = '';
+    $('matrix').querySelectorAll('.mc').forEach(c => { c.style.background = ''; c.textContent = ''; c.classList.remove('hl'); });
+    $('matrix').querySelectorAll('.lab').forEach(l => l.classList.remove('hl'));
+    $('qLabel').textContent = 'каждый получает Q, K, V'; $('sQ').textContent = '[–]'; $('sW').textContent = '[–]';
+    $('cmd').textContent = 'Q, K, V = x @ W_Q, x @ W_K, x @ W_V';
+    $('tags').innerHTML = TOK.map((t, i) => i === 1 || i === 5 || i === 7 || i === 9 ? `<span>${t}: ${FEAT.filter((_, d) => E[t][d]).map(f => FEAT_RU[f]).join(' + ')}</span>` : '').join('');
+    log('embed', 'var(--cyan)', '10 токенов · признаки → Q (ищу), K (предлагаю), V (отдаю)');
+    tokEls.forEach((el, i) => at(200 + i * 120, () => { el.classList.add('q'); setTimeout(() => el.classList.remove('q'), 300); }));
+
+    let t = 2000;
+    t = focusQuery(7, t, true);      // "it" in detail
+    t = showOutput(7, t);
+    t = fillMatrix(t);
+    at(t, cycle);
+  }
+
+  if (reduce){
+    on('bScore','bOut','bMat');
+    ATT.forEach((row, i) => row.forEach((w, j) => { if (j <= i){ const c = cell(i, j); c.style.background = heat(w); c.textContent = w >= .3 ? Math.round(w * 100) : ''; } }));
+    $('rows').innerHTML = TOK.map((tk, j) => `<div class="row ${j > 7 ? 'masked' : ''}"><span>${tk}</span><span class="s">${fmt(SCORES[7][j])}</span><span class="t2"><span class="f" style="display:block;width:${ATT[7][j] * 100}%"></span></span><b>${Math.round(ATT[7][j] * 100)}%</b></div>`).join('');
+  } else cycle();
+})();
+</script>
+
+</body>
+</html>
