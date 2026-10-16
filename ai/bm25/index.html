@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="BM25 в браузере: IDF, вклад каждого слова, формула и где поиск по словам проваливается.">
+<title>BM25 Search Live</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; index stats, query → terms with IDF, ranked results with stacked per-term contributions, formula for the winner, verdict */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --q0:#f2a65a; --q1:#6fd3d6; --q2:#b69cff; --q3:#ff9ec4;
+  --t0:#f2a65a; --t1:#6fd59a; --t2:#7aa2ff; --t3:#b69cff; --t4:#ff9ec4;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;box-shadow:0 0 16px color-mix(in srgb,var(--c) 16%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+
+.idx{display:flex;flex-wrap:wrap;gap:3px 14px;font-variant-numeric:tabular-nums;font-size:10.5px}
+.idx b{color:var(--fg);font-weight:600}
+.tokdemo{margin-top:6px;font-size:10.5px;line-height:1.6}
+.tokdemo .x{color:var(--dim);text-decoration:line-through;opacity:.6}
+.tokdemo .t{color:var(--cyan)}
+
+.qline{font-size:14px;min-height:22px}
+.qline .p{color:var(--violet)}
+.qline .typing::after{content:"▍";color:var(--cyan);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.terms{display:grid;gap:3px;margin-top:6px}
+.term{display:grid;grid-template-columns:62px 1fr auto;gap:8px;align-items:center;font-variant-numeric:tabular-nums;animation:pop .3s ease-out}
+.term .w{font-weight:600;color:var(--tc)}
+.term .t2{height:9px;background:repeating-linear-gradient(135deg,var(--line) 0 3px,transparent 3px 6px)}
+.term .f{display:block;height:100%;background:var(--tc);transition:width .5s}
+.term .v{font-size:10px;color:var(--dim);text-align:right;white-space:nowrap}
+.term .v b{color:var(--fg);font-weight:500}
+.dropped{font-size:10px;color:var(--dim);margin-top:4px}
+.dropped s{opacity:.6}
+@keyframes pop{0%{transform:translateY(3px);opacity:0}100%{transform:none;opacity:1}}
+
+.res{display:flex;flex-direction:column;gap:5px}
+.rr{display:grid;grid-template-columns:18px 1fr 40px;gap:6px;align-items:start;animation:pop .3s ease-out}
+.rr .rk{color:var(--dim);font-size:10.5px;padding-top:1px}
+.rr .tx{font-size:10.5px;line-height:1.45;border-left:3px solid var(--tc);padding-left:6px;min-width:0}
+.rr .tx mark{background:none;color:var(--mc);font-weight:600;border-bottom:1px solid var(--mc)}
+.rr .sb{display:flex;height:6px;margin-top:3px;background:var(--line);border-radius:1px;overflow:hidden}
+.rr .sb i{display:block;height:100%;transition:width .5s}
+.rr .sc{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;font-size:11px}
+.rr.zero .tx{opacity:.45} .rr.zero .sc{color:var(--dim)}
+.rr.good .sc{color:var(--green)}
+
+.formula{font-size:10.5px;line-height:1.7;overflow-x:auto;white-space:nowrap}
+.formula .f0{color:var(--dim)}
+.fr{display:grid;grid-template-columns:78px 1fr;gap:8px;font-variant-numeric:tabular-nums;font-size:10.5px;line-height:1.7;white-space:nowrap;overflow-x:auto}
+.fr .w{color:var(--tc);font-weight:600}
+.fr b{color:var(--fg);font-weight:600}
+
+.verdict{font-size:11px;line-height:1.55}
+.verdict.ok b{color:var(--green)} .verdict.bad b{color:var(--red)}
+
+.log{border:1px solid var(--line);border-radius:4px;padding:7px 9px 5px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:3px}
+.ll{display:grid;grid-template-columns:62px 1fr;gap:6px;font-size:10.5px;line-height:1.7;opacity:0;transition:opacity .3s;white-space:nowrap}
+.ll.show{opacity:1}
+.ll .who{color:var(--c)} .ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — rag — bm25</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>10 / поиск и RAG</span></div>
+    <h1>BM25 · <b>ПОИСК ПО СЛОВАМ</b></h1>
+    <p class="lead">Классический поиск, который до сих пор стоит внутри Elasticsearch и почти любой RAG-системы. Он не понимает смысл, а считает слова: чем реже слово в коллекции и чем чаще оно в документе, тем выше документ.</p>
+
+    <div class="box" style="--c:var(--violet)">
+      <div class="hd">01 · индекс <small>тот же тендер, что на странице chunking</small></div>
+      <div class="idx" id="idx"></div>
+      <div class="tokdemo" id="tokdemo"></div>
+      <div class="note">Каждое предложение здесь — отдельный чанк. Текст режется на слова, служебные слова выбрасываются, окончание множественного числа срезается. Для каждого слова запоминается, в скольких чанках оно встречается.</div>
+    </div>
+
+    <div class="box" style="--c:var(--amber)">
+      <div class="hd">02 · запрос <small id="qNo"></small></div>
+      <div class="qline"><span class="p">search ›</span> <span id="qTxt"></span></div>
+      <div class="terms" id="terms"></div>
+      <div class="dropped" id="dropped"></div>
+      <div class="note">IDF — вес редкости. Слово, которое есть в 1 чанке из 20, говорит о документе много. Слово, которое есть почти везде, почти ничего.</div>
+    </div>
+
+    <div class="box" style="--c:var(--cyan)">
+      <div class="hd">03 · ранжирование <small>top-5 из 20</small></div>
+      <div class="res" id="res"></div>
+    </div>
+
+    <div class="box" style="--c:var(--green)">
+      <div class="hd">04 · откуда счёт у №1 <small>k1 = 1.2 · b = 0.75</small></div>
+      <div class="formula"><span class="f0">score = Σ IDF · tf·(k1+1) / (tf + k1·(1 − b + b·len/avgdl))</span></div>
+      <div id="formula"></div>
+      <div class="note">len/avgdl — поправка на длину: совпадение в коротком чанке весит больше, чем то же слово в длинном. tf — сколько раз слово есть в чанке; рост счёта от повторов быстро насыщается, поэтому повторить слово 10 раз не помогает.</div>
+    </div>
+
+    <div class="box" style="--c:var(--red)" id="vBox">
+      <div class="hd">05 · вердикт <small>сверка с разметкой тем</small></div>
+      <div class="verdict" id="verdict">…</div>
+    </div>
+
+    <div class="note" style="margin-top:-2px">Всё на странице вычисляется в браузере по формуле Okapi BM25: токенизация, частоты, IDF и счёт. Разметка тем — та же, что я сделал для страницы chunking, её алгоритм не видит.</div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">bm25.search(query)</span></div>
+  </div>
+</div>
+
+<script type="application/json" id="data">{"sentences": ["The buyer is purchasing twenty laptops for the finance department.", "Each laptop must have at least an eight-core processor and sixteen gigabytes of RAM.", "The screen must be at least fifteen inches with a matte finish.", "A licensed operating system must be preinstalled on every device.", "The bidder must have completed at least one similar contract in the last three years.", "Copies of that contract and the signed acceptance certificates must be attached to the bid.", "Companies in bankruptcy or liquidation proceedings are not allowed to participate.", "The bid is signed by the company director or a person with a power of attorney.", "Delivery must be completed within thirty calendar days after the contract is signed.", "The supplier transports the goods to the buyer's warehouse at its own expense.", "Unloading the boxes and carrying them into the storage room is the supplier's job.", "Receipt of the goods is confirmed by a delivery note signed by the warehouse keeper.", "Payment is made in hryvnias by bank transfer to the supplier's account.", "The money is transferred within ten banking days after the invoice is received.", "No advance payment is provided under this contract.", "The contract price includes value added tax and cannot be increased.", "The warranty period for the laptops is at least two years.", "If a device breaks down, the supplier repairs or replaces it free of charge.", "Repairs must start within five working days after the buyer reports a defect.", "A replacement device is provided while the original is being repaired."], "topics": ["scope", "scope", "scope", "scope", "bidder", "bidder", "bidder", "bidder", "delivery", "delivery", "delivery", "delivery", "payment", "payment", "payment", "payment", "warranty", "warranty", "warranty", "warranty"]}</script>
+<script>
+const STOP = new Set('a an the is are be been being of to in on for and or by at its it this that with must within after while if any each every no not can will we our do does how when what who which from as per under has have shall is'.split(' '));
+const stem = w => w.length > 4 && w.endsWith('ies') ? w.slice(0, -3) + 'y' : w.length > 3 && w.endsWith('es') && /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w;
+const tokenize = s => (s.toLowerCase().match(/[a-z]+/g) || []).filter(w => !STOP.has(w)).map(stem);
+function buildIndex(docs){
+  const toks = docs.map(tokenize), N = docs.length, avgdl = toks.reduce((s, t) => s + t.length, 0) / N;
+  const df = new Map(); toks.forEach(t => new Set(t).forEach(w => df.set(w, (df.get(w) || 0) + 1)));
+  return {toks, N, avgdl, df};
+}
+function bm25(index, query, k1 = 1.2, b = 0.75){
+  const q = [...new Set(tokenize(query))];
+  const idf = Object.fromEntries(q.map(w => { const n = index.df.get(w) || 0; return [w, Math.log((index.N - n + 0.5) / (n + 0.5) + 1)]; }));
+  const rows = index.toks.map((t, i) => {
+    const parts = q.map(w => {
+      const tf = t.filter(x => x === w).length;
+      const norm = 1 - b + b * t.length / index.avgdl;
+      return {w, tf, s:tf ? idf[w] * tf * (k1 + 1) / (tf + k1 * norm) : 0};
+    });
+    return {i, len:t.length, parts, score:parts.reduce((s, p) => s + p.s, 0)};
+  }).sort((a, b) => b.score - a.score);
+  return {q, idf, rows};
+}
+
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const D = JSON.parse($('data').textContent);
+  const S = D.sentences, TOP = D.topics, TNAMES = [...new Set(TOP)];
+  const TRU = {scope:'предмет закупки', bidder:'требования к участнику', delivery:'поставка', payment:'оплата', warranty:'гарантия'};
+  const TC = i => `var(--t${TNAMES.indexOf(TOP[i])})`;
+  const IDX = buildIndex(S);
+  const K1 = 1.2, B = .75;
+  const QUERIES = [
+    {q:'laptop warranty repair', want:'warranty'},
+    {q:'bank transfer invoice', want:'payment'},
+    {q:'when will the supplier get paid', want:'payment'},
+  ];
+  let qi = 0, timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  // index panel (static)
+  const vocab = IDX.df.size;
+  $('idx').innerHTML = `<span>чанков <b>${IDX.N}</b></span><span>уникальных слов <b>${vocab}</b></span><span>средняя длина <b>${IDX.avgdl.toFixed(1)}</b> слова</span>`;
+  const demo = S[16];
+  const demoToks = new Set(tokenize(demo));
+  $('tokdemo').innerHTML = '<span class="k">пример › </span>' + (demo.match(/[A-Za-z]+|[^A-Za-z]+/g) || []).map(w => {
+    if (!/[A-Za-z]/.test(w)) return '';
+    const t = tokenize(w)[0];
+    return t ? `<span class="t">${t}</span> ` : `<span class="x">${w.toLowerCase()}</span> `;
+  }).join('');
+
+  const QC = i => `var(--q${i % 4})`;
+  const highlight = (s, q) => s.replace(/[A-Za-z]+/g, w => { const t = tokenize(w)[0]; const k = t ? q.indexOf(t) : -1; return k >= 0 ? `<mark style="--mc:${QC(k)}">${w}</mark>` : w; });
+
+  function run(){
+    timers.forEach(clearTimeout); timers = [];
+    const {q:query, want} = QUERIES[qi % QUERIES.length]; qi++;
+    const R = bm25(IDX, query, K1, B);
+    const maxIdf = Math.log((IDX.N + .5) / .5 + 1);
+    $('qNo').textContent = `запрос ${((qi - 1) % QUERIES.length) + 1} из ${QUERIES.length}`;
+    $('qTxt').innerHTML = '<span class="typing"></span>'; $('terms').innerHTML = ''; $('dropped').innerHTML = '';
+    $('res').innerHTML = ''; $('formula').innerHTML = ''; $('verdict').className = 'verdict'; $('verdict').innerHTML = '…';
+    $('cmd').textContent = `bm25.search("${query}")`;
+    log('query', 'var(--amber)', `«${query}»`);
+    let t = 300;
+    [...query].forEach((ch, i) => at(t + i * 55, () => $('qTxt').querySelector('.typing').textContent += ch));
+    t += query.length * 55 + 300;
+    at(t, () => {
+      $('qTxt').innerHTML = query;
+      const all = (query.toLowerCase().match(/[a-z]+/g) || []);
+      const gone = all.filter(w => !tokenize(w).length);
+      $('dropped').innerHTML = gone.length ? `выброшены как служебные: ${gone.map(w => `<s>${w}</s>`).join(' ')}` : '';
+    });
+    R.q.forEach((w, k) => at(t + 300 + k * 450, () => {
+      const n = IDX.df.get(w) || 0;
+      $('terms').insertAdjacentHTML('beforeend', `<div class="term" style="--tc:${QC(k)}"><span class="w">${w}</span><span class="t2"><span class="f" style="width:0"></span></span><span class="v">в <b>${n}</b> из ${IDX.N} · IDF <b>${R.idf[w].toFixed(2)}</b></span></div>`);
+      requestAnimationFrame(() => { const f = $('terms').lastElementChild.querySelector('.f'); f.style.width = `${R.idf[w] / maxIdf * 100}%`; });
+      log('idf', 'var(--amber)', `${w}: встречается в ${n} чанк${n === 1 ? 'е' : 'ах'} → IDF ${R.idf[w].toFixed(2)}${n === 0 ? ' (слова нет в документе!)' : ''}`);
+    }));
+    t += 300 + R.q.length * 450 + 300;
+
+    // scoring: show top 5, filling bars
+    const top = R.rows.slice(0, 5), maxS = Math.max(top[0].score, 1e-9);
+    at(t, () => {
+      $('cmd').textContent = `score(doc) for ${IDX.N} docs → sort`;
+      $('res').innerHTML = top.map((r, k) => `<div class="rr ${r.score === 0 ? 'zero' : ''} ${TOP[r.i] === want && r.score > 0 ? 'good' : ''}" style="--tc:${TC(r.i)}"><span class="rk">${k + 1}</span><span class="tx">${highlight(S[r.i], R.q)}<span class="sb">${r.parts.map((p, j) => `<i style="width:0;background:${QC(j)}" data-w="${p.s / maxS * 100}"></i>`).join('')}</span></span><span class="sc">${r.score.toFixed(2)}</span></div>`).join('');
+    });
+    at(t + 150, () => $('res').querySelectorAll('.sb i').forEach(i => i.style.width = i.dataset.w + '%'));
+    t += 1400;
+
+    // formula for #1
+    at(t, () => {
+      const r = top[0];
+      if (r.score === 0){ $('formula').innerHTML = '<div class="k" style="font-size:10.5px">у лучшего документа счёт 0 — ни одно слово не совпало</div>'; return; }
+      const norm = 1 - B + B * r.len / IDX.avgdl;
+      $('formula').innerHTML = `<div class="fr"><span class="k">len/avgdl</span><span>${r.len} / ${IDX.avgdl.toFixed(2)} → поправка <b>${norm.toFixed(2)}</b></span></div>` +
+        r.parts.map((p, j) => `<div class="fr" style="--tc:${QC(j)}"><span class="w">${p.w}</span><span>${p.tf ? `${R.idf[p.w].toFixed(2)} · ${p.tf}·2.2 / (${p.tf} + 1.2·${norm.toFixed(2)}) = <b>${p.s.toFixed(2)}</b>` : '<span class="k">tf = 0 → 0</span>'}</span></div>`).join('') +
+        `<div class="fr"><span class="k">итог</span><span><b>${r.score.toFixed(2)}</b></span></div>`;
+      $('cmd').textContent = `explain(top1)`;
+    });
+    t += 1600;
+
+    // verdict
+    at(t, () => {
+      const top3 = top.slice(0, 3);
+      const hits = top3.filter(r => TOP[r.i] === want && r.score > 0).length;
+      const total = TOP.filter(x => x === want).length;
+      const missing = R.q.filter(w => !(IDX.df.get(w)));
+      const v = $('verdict');
+      if (hits >= 2){
+        v.className = 'verdict ok';
+        v.innerHTML = `<b>Нашёл.</b> В топ-3 ${hits} из 3 — про «${TRU[want]}». Совпали точные слова из запроса, и редкие весили больше частых.` +
+          (query.includes('transfer') ? ` Но заметь: во втором чанке стоят <b>transferred</b> и <b>banking</b>, а BM25 засчитал только <b>invoice</b>. Для него это разные слова.` : '');
+        log('итог', 'var(--green)', `топ-3: ${hits}/3 про «${TRU[want]}»`);
+      } else {
+        v.className = 'verdict bad';
+        const moneyIdx = S.findIndex(x => x.startsWith('The money')), moneyRank = R.rows.findIndex(r => r.i === moneyIdx) + 1;
+        v.innerHTML = `<b>Провал.</b> Вопрос про «${TRU[want]}», но в топ-3 только ${hits} подходящий. Слов${missing.length > 1 ? 'а' : 'о'} ${missing.map(w => `<b>${w}</b>`).join(', ')} в документе нет вообще, а <b>supplier</b> есть в куче чанков на любые темы. Чанк «The money is transferred…» оказался на месте ${moneyRank} из ${IDX.N}: BM25 не знает, что <i>paid</i> и <i>money</i> об одном и том же. Это решает гибридный поиск — следующая тема.`;
+        log('итог', 'var(--red)', `провал: «${missing.join(', ')}» нет в документе, смысл не пойман`);
+      }
+    });
+    at(t + 7500, run);
+  }
+  run();
+})();
+</script>
+
+</body>
+</html>
