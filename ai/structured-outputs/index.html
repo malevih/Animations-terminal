@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Structured outputs: свободный JSON ломает парсер, схему и код; constrained decoding с маской токенов даёт валидный ответ.">
+<title>Structured Outputs Live</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; schema, three free-form answers breaking parse/validate/downstream code, then constrained decoding with a live token mask, then the validated result */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;box-shadow:0 0 16px color-mix(in srgb,var(--c) 16%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+.g{color:var(--green)} .bd{color:var(--red)}
+
+pre{margin:0;font-family:var(--mono);font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.schema{color:var(--dim)} .schema .key{color:var(--cyan)} .schema .ty{color:var(--violet)}
+.raw{background:#0d0e17;border:1px solid var(--line);border-radius:3px;padding:6px 8px;min-height:58px;color:var(--fg)}
+.raw .bad{background:rgba(255,122,133,.22);color:#fff;border-radius:2px}
+.steps{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.st{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:10.5px;line-height:1.5;animation:pop .3s ease-out}
+.st .l{color:var(--dim)}
+.st .r{min-width:0;word-break:break-word}
+.errs{display:flex;flex-direction:column;gap:1px}
+.errs div{color:var(--red);font-size:10px}
+.errs div::before{content:"✗ "}
+.att{display:flex;gap:4px;margin-bottom:6px}
+.att span{flex:1;text-align:center;border:1px solid var(--line);font-size:9.5px;padding:3px 0;color:var(--dim)}
+.att span.now{border-color:var(--red);color:var(--fg)}
+@keyframes pop{0%{transform:translateY(3px);opacity:0}100%{transform:none;opacity:1}}
+
+.stream{color:var(--fg);background:#0d0e17;border:1px solid var(--line);border-radius:3px;padding:6px 8px;min-height:40px;font-size:10.5px;line-height:1.6;word-break:break-all}
+.stream .t{animation:pop .25s ease-out}
+.stream .v{color:var(--green)}
+.stream .cur{display:inline-block;width:7px;height:13px;background:var(--cyan);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.slot{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:10.5px;align-items:baseline}
+.slot .l{color:var(--dim)}
+.slot .rule{color:var(--violet)}
+.cands{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:44px;align-content:flex-start}
+.cd{display:flex;flex-direction:column;align-items:center;border:1px solid var(--line);border-radius:3px;padding:3px 7px 2px;animation:pop .25s ease-out;max-width:100%}
+.cd .t{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+.cd .p{font-size:9px;color:var(--dim)}
+.cd.no{border-color:rgba(255,122,133,.5)} .cd.no .t{color:var(--red);text-decoration:line-through}
+.cd.ok{border-color:var(--green);background:rgba(111,213,154,.12)} .cd.ok .t{color:var(--green)}
+.cd.ok2{border-color:rgba(111,213,154,.45)} .cd.ok2 .t{color:var(--fg)}
+.maskbar{display:flex;gap:1px;height:8px;margin-top:6px}
+.maskbar i{flex:1;border-radius:1px;background:#1a1c2b;transition:background .2s}
+.maskbar i.on{background:var(--green)}
+.mstat{font-size:9.5px;color:var(--dim);margin-top:3px;font-variant-numeric:tabular-nums}
+
+.final .row{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:10.5px;line-height:1.6}
+.final .row .l{color:var(--dim)}
+
+.log{border:1px solid var(--line);border-radius:4px;padding:7px 9px 5px}
+.log .lt{color:var(--dim);font-size:10px;margin-bottom:3px}
+.ll{display:grid;grid-template-columns:62px 1fr;gap:6px;font-size:10.5px;line-height:1.7;opacity:0;transition:opacity .3s;white-space:nowrap}
+.ll.show{opacity:1}
+.ll .who{color:var(--c)} .ll .tx{overflow:hidden;text-overflow:ellipsis}
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — agents — structured outputs</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>15 / агенты</span></div>
+    <h1>STRUCTURED OUTPUTS · <b>СТРОГО ПО СХЕМЕ</b></h1>
+    <p class="lead">Когда ответ модели читает не человек, а код, «примерно JSON» ломает программу. Structured outputs заставляют модель выдавать ответ, который точно проходит схему: на каждом шаге генерации запрещённые токены просто вырезаются.</p>
+
+    <div class="box" style="--c:var(--violet)">
+      <div class="hd">01 · схема <small>карточка тендера из документа</small></div>
+      <pre class="schema" id="schema"></pre>
+    </div>
+
+    <div class="box" style="--c:var(--red)">
+      <div class="hd">02 · просто попросили «верни JSON» <small id="attInfo"></small></div>
+      <div class="att" id="att"><span>попытка 1</span><span>попытка 2</span><span>попытка 3</span></div>
+      <pre class="raw" id="raw"></pre>
+      <div class="steps" id="steps"></div>
+    </div>
+
+    <div class="box" style="--c:var(--cyan)">
+      <div class="hd">03 · constrained decoding <small id="cdInfo">маска из схемы</small></div>
+      <div class="stream" id="stream"></div>
+      <div class="slot" id="slot"></div>
+      <div class="cands" id="cands"></div>
+      <div class="maskbar" id="maskbar"></div>
+      <div class="mstat" id="mstat"></div>
+      <div class="note">Перед выбором каждого токена схема превращается в маску: всё, что сделает JSON невалидным, получает вероятность 0. Модель всё ещё выбирает сама, но только из разрешённого. Так работают structured outputs в API и библиотеки вроде Outlines и llguidance.</div>
+    </div>
+
+    <div class="box final" style="--c:var(--green)">
+      <div class="hd">04 · результат <small>тот же валидатор, тот же код</small></div>
+      <div id="final"></div>
+      <div class="note">Схема гарантирует форму, а не смысл. Строка <b>subject</b> может быть любой, и модель записала туда «20 laptops for the finance department». Проверять правильность содержания всё равно нужно отдельно.</div>
+    </div>
+
+    <div class="note" style="margin-top:-2px">JSON.parse, валидатор схемы, маска разрешённых токенов и код, который использует ответ, работают в браузере по-настоящему. Тексты трёх «свободных» ответов и порядок, в котором модель хотела бы выбрать токены, написал я, Claude, по мотивам типичных ошибок LLM. Какие из этих токенов пропустить, решает маска, а не я.</div>
+
+    <div class="log">
+      <div class="lt">session log</div>
+      <div id="logs"></div>
+    </div>
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">llm.extract(tender, schema)</span></div>
+  </div>
+</div>
+
+<script>
+// --- a small real JSON Schema validator (subset: type, required, properties, additionalProperties, enum, minimum) ---
+function validate(schema, value, path = '$'){
+  const errs = [];
+  const typeOf = v => v === null ? 'null' : Array.isArray(v) ? 'array' : Number.isInteger(v) ? 'integer' : typeof v;
+  const okType = (want, v) => want === 'number' ? typeof v === 'number' : want === 'integer' ? Number.isInteger(v) : typeOf(v) === want;
+  if (schema.type && !okType(schema.type, value)){ errs.push(`${path}: ожидался ${schema.type}, пришёл ${typeOf(value)} ${JSON.stringify(value)}`); return errs; }
+  if (schema.enum && !schema.enum.includes(value)) errs.push(`${path}: ${JSON.stringify(value)} не из списка ${JSON.stringify(schema.enum)}`);
+  if (schema.minimum != null && typeof value === 'number' && value < schema.minimum) errs.push(`${path}: ${value} меньше минимума ${schema.minimum}`);
+  if (schema.type === 'object'){
+    (schema.required || []).forEach(k => { if (!(k in value)) errs.push(`${path}: нет обязательного поля "${k}"`); });
+    Object.keys(value).forEach(k => {
+      if (schema.properties && k in schema.properties) errs.push(...validate(schema.properties[k], value[k], `${path}.${k}`));
+      else if (schema.additionalProperties === false) errs.push(`${path}: лишнее поле "${k}"`);
+    });
+  }
+  return errs;
+}
+// --- constrained decoding: the schema turns into a sequence of slots; each slot defines which tokens are legal ---
+function slotsFor(schema){
+  const slots = [{kind:'lit', tok:'{'}];
+  schema.required.forEach((k, i) => {
+    slots.push({kind:'lit', tok:`"${k}":`});
+    slots.push({kind:'value', key:k, spec:schema.properties[k]});
+    slots.push({kind:'lit', tok:i < schema.required.length - 1 ? ',' : '}'});
+  });
+  return slots;
+}
+function allowed(slot, tok){
+  if (slot.kind === 'lit') return tok === slot.tok;
+  const s = slot.spec;
+  if (s.type === 'integer') return /^-?\d+$/.test(tok) && (s.minimum == null || +tok >= s.minimum);
+  if (s.type === 'boolean') return tok === 'true' || tok === 'false';
+  if (s.type === 'string'){ if (!/^"[^"\\]*"$/.test(tok)) return false; return !s.enum || s.enum.includes(tok.slice(1, -1)); }
+  return false;
+}
+
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const SCHEMA = {type:'object', additionalProperties:false, required:['subject','quantity','delivery_days','currency','advance_payment','warranty_years'],
+    properties:{subject:{type:'string'}, quantity:{type:'integer', minimum:1}, delivery_days:{type:'integer', minimum:1}, currency:{type:'string', enum:['UAH','USD','EUR']}, advance_payment:{type:'boolean'}, warranty_years:{type:'integer', minimum:0}}};
+  const FREE = [
+    'Sure! Here is the extracted data:\n```json\n{"subject": "laptops", "quantity": 20, "delivery_days": 30, "currency": "UAH", "advance_payment": false, "warranty_years": 2}\n```',
+    '{"subject": "laptops", "quantity": "20 laptops", "delivery_days": "30 calendar days", "currency": "hryvnia", "advance_payment": "no", "warranty_years": 2,}',
+    '{"subject": "laptops", "quantity": "20", "delivery_days": 30, "currency": "hryvnia", "advance": false}',
+  ];
+  // model's preferred tokens at each value slot, most wanted first (hand-written)
+  const PREFS = {_start:['Sure!', '```json', '{'], subject:['"20 laptops for the finance department"', '"laptops"'], quantity:['"20 laptops"', 'twenty', '20'], delivery_days:['"30 calendar days"', '30'], currency:['"hryvnia"', '"UAH"'], advance_payment:['"no"', 'none', 'false'], warranty_years:['"at least two years"', '2']};
+  const VOCAB = [...new Set([...Object.values(PREFS).flat(), '{', '}', ',', ...SCHEMA.required.map(k => `"${k}":`), 'true', '"USD"', '"EUR"', '0', '1', '15', '"yes"', 'null'])];
+  const RULE = s => s.kind === 'lit' ? `только «${s.tok}»` : s.spec.enum ? `одно из ${s.spec.enum.map(x => `"${x}"`).join(' | ')}` : s.spec.type === 'integer' ? `целое число ≥ ${s.spec.minimum}` : s.spec.type === 'boolean' ? 'true | false' : 'любая строка в кавычках';
+
+  // schema pretty print
+  $('schema').innerHTML = '{\n' + SCHEMA.required.map(k => { const p = SCHEMA.properties[k]; return `  <span class="key">"${k}"</span>: <span class="ty">${p.type}${p.enum ? ' ∈ ' + p.enum.join('|') : ''}${p.minimum != null ? ' ≥ ' + p.minimum : ''}</span>`; }).join(',\n') + '\n}  <span class="k">все поля обязательны, лишние запрещены</span>';
+
+  let timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const log = (who, color, text) => {
+    const row = document.createElement('div');
+    row.className = 'll'; row.style.setProperty('--c', color);
+    row.innerHTML = `<span class="who">${who}</span><span class="tx">${text}</span>`;
+    const box = $('logs'); box.appendChild(row);
+    while (box.children.length > 5) box.removeChild(box.firstChild);
+    requestAnimationFrame(() => row.classList.add('show'));
+  };
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const step = (l, r) => `<div class="st"><span class="l">${l}</span><span class="r">${r}</span></div>`;
+  const downstream = card => {   // the code that consumes the answer
+    const units = card.quantity + 1;           // one spare laptop
+    const payBy = card.delivery_days + 10;     // payment deadline, days from signing
+    return {units, payBy};
+  };
+
+  function showAttempt(i, T0){
+    const txt = FREE[i];
+    at(T0, () => {
+      document.querySelectorAll('#att span').forEach((s, k) => s.classList.toggle('now', k === i));
+      $('attInfo').textContent = `попытка ${i + 1} из 3`;
+      $('raw').innerHTML = esc(txt); $('steps').innerHTML = '';
+      $('cmd').textContent = 'card = JSON.parse(llm_output)';
+    });
+    at(T0 + 900, () => {
+      let card;
+      try { card = JSON.parse(txt); }
+      catch (e){
+        const pos = +(e.message.match(/position (\d+)/) || [])[1];
+        if (!isNaN(pos)) $('raw').innerHTML = esc(txt.slice(0, pos)) + `<span class="bad">${esc(txt[pos] || ' ')}</span>` + esc(txt.slice(pos + 1));
+        else $('raw').innerHTML = `<span class="bad">${esc(txt.slice(0, 5))}</span>` + esc(txt.slice(5));
+        $('steps').innerHTML = step('JSON.parse', `<span class="bd">✗ ${esc(e.message)}</span>`) + step('итог', `<span class="bd">программа упала ещё до проверки схемы</span>`);
+        log(`попытка ${i + 1}`, 'var(--red)', `JSON.parse: ${e.message.slice(0, 60)}`);
+        return;
+      }
+      $('steps').innerHTML = step('JSON.parse', '<span class="g">✓ разобрался</span>');
+      setTimeout(() => {
+        const errs = validate(SCHEMA, card);
+        $('steps').insertAdjacentHTML('beforeend', step('валидатор схемы', errs.length ? `<span class="errs">${errs.map(e => `<div>${esc(e)}</div>`).join('')}</span>` : '<span class="g">✓ ошибок нет</span>'));
+        const d = downstream(card);
+        setTimeout(() => {
+          $('steps').insertAdjacentHTML('beforeend', step('quantity + 1', `${JSON.stringify(d.units)} ${d.units === 21 ? '<span class="g">✓</span>' : '<span class="bd">✗ строка «20» склеилась с 1</span>'}`));
+          $('steps').insertAdjacentHTML('beforeend', step('delivery_days + 10', `${JSON.stringify(d.payBy)} ${d.payBy === 40 ? '<span class="g">✓</span>' : ''}`));
+          log(`попытка ${i + 1}`, 'var(--red)', `разобрался, но ${errs.length} ошибок схемы · quantity + 1 = ${JSON.stringify(d.units)}`);
+        }, 700);
+      }, 700);
+    });
+    return T0 + (i === 2 ? 4200 : 3200);
+  }
+
+  function constrained(T0){
+    const slots = slotsFor(SCHEMA), out = [];
+    const emit = (si, last) => {   // append only the newest token, keep the cursor at the end
+      const st = $('stream'), cur = st.querySelector('.cur');
+      const span = document.createElement('span'); span.className = 't' + (slots[si].kind === 'value' ? ' v' : ''); span.textContent = out[si];
+      st.insertBefore(span, cur);
+      if (last && cur) cur.remove();
+    };
+    let t = T0;
+    at(t, () => {
+      $('stream').innerHTML = '<span class="cur"></span>'; $('slot').innerHTML = ''; $('cands').innerHTML = ''; $('maskbar').innerHTML = '<i></i>'.repeat(VOCAB.length); $('mstat').textContent = '';
+      $('cmd').textContent = 'llm.generate(prompt, response_format=schema)';
+      log('constrained', 'var(--cyan)', 'генерация с маской по схеме');
+    });
+    t += 400;
+    slots.forEach((s, si) => {
+      const isStart = si === 0, detailed = s.kind === 'value' || isStart;
+      const cand = isStart ? PREFS._start : s.kind === 'value' ? PREFS[s.key] : [s.tok];
+      const pick = cand.find(tk => allowed(s, tk));
+      out.push(pick);
+      const legal = VOCAB.filter(tk => allowed(s, tk)).length;
+      at(t, () => {
+        $('cdInfo').textContent = s.kind === 'value' ? `поле ${s.key}` : 'структура';
+        $('slot').innerHTML = `<span class="l">разрешено</span><span class="rule">${esc(RULE(s))}</span>`;
+        [...$('maskbar').children].forEach((b, k) => b.classList.toggle('on', allowed(s, VOCAB[k])));
+        $('mstat').textContent = `маска: разрешено ${legal} из ${VOCAB.length} токенов этого словаря`;
+        $('cands').innerHTML = detailed ? cand.map((tk, j) => `<span class="cd" data-j="${j}"><span class="t">${esc(tk)}</span><span class="p">хочет №${j + 1}</span></span>`).join('') : '';
+      });
+      if (detailed){
+        at(t + 450, () => cand.forEach((tk, j) => { const el = $('cands').children[j]; el.className = 'cd ' + (allowed(s, tk) ? (tk === pick ? 'ok' : 'ok2') : 'no'); el.querySelector('.p').textContent = allowed(s, tk) ? (tk === pick ? 'выбран' : 'можно') : 'запрещён'; }));
+        at(t + 1050, () => {
+          emit(si, false);
+          const blocked = cand.filter(tk => !allowed(s, tk));
+          if (blocked.length) log(s.key || 'start', 'var(--cyan)', `хотел ${blocked[0]} → запрещено, выбран ${pick}`);
+        });
+        t += 1700;
+      } else {
+        at(t + 150, () => emit(si, si === slots.length - 1));
+        t += 300;
+      }
+    });
+    const text = out.join('');
+    at(t, () => {
+      $('slot').innerHTML = '<span class="l">готово</span><span class="g">генерация закончилась на «}»</span>'; $('cands').innerHTML = '';
+      const card = JSON.parse(text), errs = validate(SCHEMA, card), d = downstream(card);
+      $('final').innerHTML = `<div class="row"><span class="l">JSON.parse</span><span class="g">✓ разобрался</span></div>
+        <div class="row"><span class="l">валидатор схемы</span><span class="${errs.length ? 'bd' : 'g'}">${errs.length ? '✗ ' + errs.join('; ') : '✓ 0 ошибок'}</span></div>
+        <div class="row"><span class="l">quantity + 1</span><span>${d.units} <span class="g">✓</span></span></div>
+        <div class="row"><span class="l">delivery_days + 10</span><span>${d.payBy} <span class="g">✓</span></span></div>`;
+      log('итог', 'var(--green)', `валиден с первого раза · quantity + 1 = ${d.units}`);
+      $('cmd').textContent = 'card → в базу, без ретраев и регулярок';
+    });
+    return t + 6500;
+  }
+
+  function run(){
+    timers.forEach(clearTimeout); timers = [];
+    $('logs').innerHTML = ''; $('final').innerHTML = '<div class="k" style="font-size:10.5px">ждёт генерации…</div>'; $('stream').innerHTML = ''; $('slot').innerHTML = ''; $('cands').innerHTML = ''; $('maskbar').innerHTML = ''; $('mstat').textContent = '';
+    let t = 300;
+    for (let i = 0; i < 3; i++) t = showAttempt(i, t);
+    t = constrained(t + 300);
+    at(t, run);
+  }
+  run();
+})();
+</script>
+
+</body>
+</html>
