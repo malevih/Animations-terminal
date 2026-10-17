@@ -1,0 +1,224 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="description" content="LLM-as-a-judge: судья без документа и с документом против настоящей проверки фактов."><title>LLM as a Judge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; rubric, one answer at a time with fact check vs two judge modes, full table of 8 answers, agreement metrics */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --nr:#f2a65a; --wr:#7aa2ff;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;box-shadow:0 0 16px color-mix(in srgb,var(--c) 16%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+.g{color:var(--green)} .bd{color:var(--red)}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.modes div{border:1px solid var(--mc);border-radius:3px;padding:5px 7px;font-size:10px;line-height:1.45;color:var(--dim)}
+.modes b{display:block;color:var(--mc);font-size:10.5px;margin-bottom:2px}
+
+.qa{font-size:11px;line-height:1.55}
+.qa .q{color:var(--violet)}
+.qa .a{margin-top:4px;padding:5px 7px;background:#0d0e17;border-radius:3px;border-left:2px solid var(--line);min-height:40px}
+.qa .meta{font-size:9.5px;color:var(--dim);margin-top:3px;font-variant-numeric:tabular-nums}
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+.col{border:1px solid var(--line);border-radius:3px;padding:5px 6px;min-width:0;transition:border-color .3s}
+.col .ch{font-size:9.5px;color:var(--dim);margin-bottom:3px}
+.col .big{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.col .why{font-size:9.5px;color:var(--dim);line-height:1.4;margin-top:3px}
+.col.fc{--cc:var(--green)} .col.nr{--cc:var(--nr)} .col.wr{--cc:var(--wr)}
+.col.on{border-color:var(--cc)}
+.col .big{color:var(--cc)}
+.claims{display:flex;flex-direction:column;gap:1px;margin-top:3px}
+.claims div{font-size:9px;line-height:1.35;color:var(--dim)}
+.verd{font-size:10px;margin-top:3px}
+
+.tbl{display:grid;grid-template-columns:18px minmax(0,1fr) 40px 26px 26px 26px;gap:3px 6px;font-size:10px;align-items:center;font-variant-numeric:tabular-nums}
+.tbl .h{color:var(--dim);font-size:9px;text-align:center}
+.tbl .h.l{text-align:left}
+.tbl .n{color:var(--dim)}
+.tbl .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+.tbl .t.now{color:var(--fg)}
+.tbl .fb{height:7px;background:var(--line);border-radius:1px;overflow:hidden}
+.tbl .fb i{display:block;height:100%;background:var(--green)}
+.tbl .sc{text-align:center;font-weight:600}
+.tbl .sc.dis{background:rgba(255,122,133,.18);border-radius:2px}
+.metrics{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 10px;font-size:10.5px;font-variant-numeric:tabular-nums;align-items:center}
+.metrics .h{font-size:9.5px;color:var(--dim)}
+.metrics b{font-weight:600}
+
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style></head><body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — eval — llm-as-a-judge</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>24 / оценка</span></div>
+    <h1>LLM-AS-A-JUDGE · <b>КТО ПРОВЕРЯЕТ ПРОВЕРЯЮЩЕГО</b></h1>
+    <p class="lead">Проверять тысячи ответов вручную дорого, поэтому их часто оценивает другая модель — «судья». Это быстро и удобно, но судья тоже ошибается. Особенно когда не видит источника: тогда он оценивает не правду, а правдоподобие.</p>
+
+    <div class="box" style="--c:var(--violet)">
+      <div class="hd">01 · кто оценивает <small>шкала 1–5, проходной балл 4</small></div>
+      <div class="modes">
+        <div style="--mc:var(--nr)"><b>судья без документа</b>видит вопрос и ответ. Рубрика: точность, полнота, ясность.</div>
+        <div style="--mc:var(--wr)"><b>судья с документом</b>та же рубрика + пункты тендера; балл снижается за всё, чего в них нет.</div>
+      </div>
+      <div class="note">Эталон — <b style="color:var(--green)">проверка фактов</b> в браузере: каждое утверждение ответа должно дословно подтверждаться пунктом тендера, плюс полнота — сколько обязательных фактов упомянуто. Итог = точность × полнота.</div>
+    </div>
+
+    <div class="box" style="--c:var(--cyan)">
+      <div class="hd">02 · ответ <small id="aNo"></small></div>
+      <div class="qa"><span class="q" id="q"></span><div class="a" id="a"></div><div class="meta" id="meta"></div></div>
+      <div class="cols">
+        <div class="col fc" id="cF"><div class="ch">проверка фактов</div><div class="big" id="fBig">–</div><div class="claims" id="fClaims"></div></div>
+        <div class="col nr" id="cN"><div class="ch">без документа</div><div class="big" id="nBig">–</div><div class="why" id="nWhy"></div><div class="verd" id="nV"></div></div>
+        <div class="col wr" id="cW"><div class="ch">с документом</div><div class="big" id="wBig">–</div><div class="why" id="wWhy"></div><div class="verd" id="wV"></div></div>
+      </div>
+    </div>
+
+    <div class="box" style="--c:var(--amber)">
+      <div class="hd">03 · все 8 ответов <small>красное ≠ фактам</small></div>
+      <div class="tbl" id="tbl"></div>
+    </div>
+
+    <div class="box" style="--c:var(--green)">
+      <div class="hd">04 · насколько судье можно верить <small>считается здесь</small></div>
+      <div class="metrics" id="metrics"></div>
+      <div class="note" id="mNote"></div>
+    </div>
+
+    <div class="note">Проверка фактов, полнота, согласие, ранговая корреляция Спирмена и связь с длиной ответа считаются в браузере. Ответы и оценки обоих судей с короткими обоснованиями написал я, Claude, и зафиксировал в данных страницы. Это учебная иллюстрация на 8 примерах, а не замер конкретной модели-судьи. Ответы без документа я оценивал по правдоподобию, как сделал бы судья, не видевший тендера.</div>
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">judge.score(question, answer)</span></div>
+  </div>
+</div>
+
+<script type="application/json" id="docs">{"sentences":["The buyer is purchasing twenty laptops for the finance department.","Each laptop must have at least an eight-core processor and sixteen gigabytes of RAM.","The screen must be at least fifteen inches with a matte finish.","A licensed operating system must be preinstalled on every device.","The bidder must have completed at least one similar contract in the last three years.","Copies of that contract and the signed acceptance certificates must be attached to the bid.","Companies in bankruptcy or liquidation proceedings are not allowed to participate.","The bid is signed by the company director or a person with a power of attorney.","Delivery must be completed within thirty calendar days after the contract is signed.","The supplier transports the goods to the buyer's warehouse at its own expense.","Unloading the boxes and carrying them into the storage room is the supplier's job.","Receipt of the goods is confirmed by a delivery note signed by the warehouse keeper.","Payment is made in hryvnias by bank transfer to the supplier's account.","The money is transferred within ten banking days after the invoice is received.","No advance payment is provided under this contract.","The contract price includes value added tax and cannot be increased.","The warranty period for the laptops is at least two years.","If a device breaks down, the supplier repairs or replaces it free of charge.","Repairs must start within five working days after the buyer reports a defect.","A replacement device is provided while the original is being repaired."]}</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const S = JSON.parse($('docs').textContent).sentences, DOC = S.join(' ').toLowerCase();
+  const Q = {
+    pay:{text:'How and when does the supplier get paid?', req:[{cite:13, quote:'by bank transfer'}, {cite:14, quote:'within ten banking days'}, {cite:15, quote:'No advance payment'}]},
+    war:{text:'What happens if a laptop breaks?', req:[{cite:17, quote:'at least two years'}, {cite:18, quote:'repairs or replaces it free of charge'}, {cite:19, quote:'within five working days'}, {cite:20, quote:'replacement device is provided'}]},
+    pen:{text:'What is the penalty for late delivery?', req:[{absent:['penalty', 'fine']}]},
+  };
+  // answers + both judges' scores, written and frozen before the page computes the fact check
+  const A = [
+    {q:'pay', text:'Paid by bank transfer [13], within ten banking days after the invoice [14]. No advance payment [15].',
+     claims:[{cite:13, quote:'by bank transfer'}, {cite:14, quote:'within ten banking days'}, {cite:15, quote:'No advance payment'}],
+     nr:[4, 'коротко и правдоподобно, но суховато'], wr:[5, 'все три факта есть в пп. 13–15']},
+    {q:'pay', text:'Under standard procurement practice, the supplier receives a 30% advance upon contract signature, and the remaining balance is settled within 30 days after delivery and acceptance, provided all documents including the bank guarantee are submitted.',
+     claims:[{cite:null, quote:'30% advance'}, {cite:null, quote:'within 30 days after delivery'}, {cite:null, quote:'bank guarantee'}],
+     nr:[5, 'подробно, профессиональный тон, учтены документы'], wr:[1, 'ни один факт не из тендера; п. 15 прямо запрещает аванс']},
+    {q:'pay', text:'The supplier is paid by bank transfer [13].',
+     claims:[{cite:13, quote:'by bank transfer'}],
+     nr:[3, 'верно по виду, но нет сроков'], wr:[2, 'верно, но не сказано когда и про аванс']},
+    {q:'war', text:'The warranty is at least two years [17]. A broken laptop is repaired or replaced free of charge [18]; repairs start within five working days of the report [19], and a replacement device is provided meanwhile [20].',
+     claims:[{cite:17, quote:'at least two years'}, {cite:18, quote:'repairs or replaces it free of charge'}, {cite:19, quote:'within five working days'}, {cite:20, quote:'replacement device is provided'}],
+     nr:[5, 'полно и конкретно'], wr:[5, 'все четыре факта подтверждены']},
+    {q:'war', text:'The warranty is one year.',
+     claims:[{cite:null, quote:'one year'}],
+     nr:[3, 'правдоподобно, но мало деталей'], wr:[1, 'в п. 17 — не меньше двух лет']},
+    {q:'war', text:'Good news — the laptops are covered for at least two years [17], and the supplier also offers free on-site service at your office within 24 hours, so you will barely notice any downtime!',
+     claims:[{cite:17, quote:'at least two years'}, {cite:null, quote:'on-site service at your office within 24 hours'}],
+     nr:[4, 'дружелюбно, полезные детали'], wr:[2, 'гарантия верна, «24 часа на месте» выдумано']},
+    {q:'pen', text:'The tender does not set a penalty for late delivery; it only requires delivery within thirty calendar days after signing [9].',
+     claims:[{cite:9, quote:'within thirty calendar days'}, {absent:['penalty', 'fine']}],
+     nr:[2, 'не ответил на вопрос про размер штрафа'], wr:[5, 'штрафа в тендере действительно нет; срок верный']},
+    {q:'pen', text:'The penalty for late delivery is 0.1% of the contract price for each day of delay, capped at 10% of the total contract value.',
+     claims:[{cite:null, quote:'0.1% of the contract price'}],
+     nr:[5, 'конкретные цифры, звучит как типовой договор'], wr:[1, 'в тендере нет пункта о штрафе']},
+  ];
+
+  // ---------------- real fact check ----------------
+  const checkClaim = c => {
+    if (c.absent){ const found = c.absent.filter(w => DOC.includes(w)); return {ok:!found.length, why:found.length ? `в тендере есть «${found[0]}»` : `«${c.absent.join('/')}» нет в тендере ✓`}; }
+    if (c.cite == null){ const inDoc = DOC.includes(c.quote.toLowerCase()); return {ok:inDoc, why:inDoc ? `«${c.quote}» есть в тендере` : `«${c.quote}» — нет в тендере`}; }
+    const ok = S[c.cite - 1].includes(c.quote); return {ok, why:ok ? `п. ${c.cite} ✓` : `в п. ${c.cite} нет «${c.quote}»`};
+  };
+  const R = A.map((a, i) => {
+    const checks = a.claims.map(checkClaim);
+    const precision = checks.filter(c => c.ok).length / checks.length;
+    const req = Q[a.q].req;
+    const covered = req.filter(r => r.absent ? a.claims.some(c => c.absent) : a.claims.some(c => c.cite === r.cite && S[r.cite - 1].includes(c.quote))).length;
+    const coverage = covered / req.length;
+    const fact = precision * coverage;
+    return {...a, i, checks, precision, coverage, fact, len:a.text.split(/\s+/).length, factPass:fact >= 0.99, nrPass:a.nr[0] >= 4, wrPass:a.wr[0] >= 4};
+  });
+  const rank = arr => { const idx = arr.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]); const r = new Array(arr.length); let k = 0; while (k < idx.length){ let j = k; while (j + 1 < idx.length && idx[j + 1][0] === idx[k][0]) j++; for (let m = k; m <= j; m++) r[idx[m][1]] = (k + j) / 2 + 1; k = j + 1; } return r; };
+  const pearson = (x, y) => { const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sx = 0, sy = 0; for (let i = 0; i < n; i++){ sxy += (x[i] - mx) * (y[i] - my); sx += (x[i] - mx) ** 2; sy += (y[i] - my) ** 2; } return sxy / Math.sqrt(sx * sy); };
+  const spearman = (x, y) => pearson(rank(x), rank(y));
+  const facts = R.map(r => r.fact), nr = R.map(r => r.nr[0]), wr = R.map(r => r.wr[0]), lens = R.map(r => r.len);
+  const agree = key => R.filter(r => r[key] === r.factPass).length;
+  const fp = key => R.filter(r => r[key] && !r.factPass).length;
+
+  // table + metrics (static)
+  const tbl = () => {
+    $('tbl').innerHTML = '<span class="h"></span><span class="h l">ответ</span><span class="h">факты</span><span class="h">без</span><span class="h">с</span><span class="h">слов</span>' +
+      R.map(r => `<span class="n">${r.i + 1}</span><span class="t" data-i="${r.i}">${r.text}</span><span class="fb"><i style="width:${r.fact * 100}%"></i></span><span class="sc ${r.nrPass !== r.factPass ? 'dis' : ''}" style="color:var(--nr)">${r.nr[0]}</span><span class="sc ${r.wrPass !== r.factPass ? 'dis' : ''}" style="color:var(--wr)">${r.wr[0]}</span><span class="sc" style="color:var(--dim);font-weight:400">${r.len}</span>`).join('');
+  };
+  tbl();
+  const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2);
+  $('metrics').innerHTML = `<span class="h"></span><span class="h" style="color:var(--nr)">без документа</span><span class="h" style="color:var(--wr)">с документом</span>
+    <span class="k">совпал с фактами (прошёл/нет)</span><b>${agree('nrPass')}/8</b><b>${agree('wrPass')}/8</b>
+    <span class="k">пропустил неверный ответ</span><b class="bd">${fp('nrPass')}</b><b class="${fp('wrPass') ? 'bd' : 'g'}">${fp('wrPass')}</b>
+    <span class="k">корреляция с фактами (Спирмен)</span><b>${f2(spearman(nr, facts))}</b><b>${f2(spearman(wr, facts))}</b>
+    <span class="k">корреляция с длиной ответа</span><b>${f2(spearman(nr, lens))}</b><b>${f2(spearman(wr, lens))}</b>`;
+  $('mNote').innerHTML = `Без документа судья пропустил ${fp('nrPass')} уверенных выдумки (аванс 30%, штраф 0.1%, сервис за 24 часа) и завалил честный отказ «штрафа в тендере нет». Его оценки растут вместе с длиной ответа, а не с правдой. С документом судья совпал с проверкой фактов в ${agree('wrPass')} из 8 — но тогда его ценность в другом: он оценивает то, что проверка не умеет, например понятность и тон. На практике судью калибруют: 50–100 ответов размечает человек, и смотрят, как часто судья с ним согласен.`;
+
+  // ---------------- animation ----------------
+  let timers = [], ai = 0;
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function run(){
+    timers.forEach(clearTimeout); timers = [];
+    const r = R[ai % R.length]; ai++;
+    document.querySelectorAll('.tbl .t').forEach(el => el.classList.toggle('now', +el.dataset.i === r.i));
+    $('aNo').textContent = `${r.i + 1} из 8`;
+    $('q').textContent = 'Q: ' + Q[r.q].text; $('a').textContent = ''; $('meta').textContent = '';
+    ['F', 'N', 'W'].forEach(k => $('c' + k).classList.remove('on'));
+    $('fBig').textContent = '–'; $('fClaims').innerHTML = ''; $('nBig').textContent = '–'; $('nWhy').textContent = ''; $('nV').innerHTML = ''; $('wBig').textContent = '–'; $('wWhy').textContent = ''; $('wV').innerHTML = '';
+    $('cmd').textContent = 'answer ← candidate';
+    const words = r.text.split(' ');
+    words.forEach((w, j) => at(150 + j * 45, () => { $('a').textContent += (j ? ' ' : '') + w; }));
+    let t = 150 + words.length * 45 + 300;
+    at(t, () => $('meta').textContent = `${r.len} слов`);
+    at(t + 300, () => { $('cN').classList.add('on'); $('cmd').textContent = 'judge(question, answer)  # без документа'; $('nBig').textContent = `${r.nr[0]}/5`; $('nWhy').textContent = r.nr[1]; $('nV').innerHTML = r.nrPass ? '<span style="color:var(--nr)">прошёл</span>' : '<span class="k">не прошёл</span>'; });
+    at(t + 1500, () => { $('cW').classList.add('on'); $('cmd').textContent = 'judge(question, answer, clauses, rubric)'; $('wBig').textContent = `${r.wr[0]}/5`; $('wWhy').textContent = r.wr[1]; $('wV').innerHTML = r.wrPass ? '<span style="color:var(--wr)">прошёл</span>' : '<span class="k">не прошёл</span>'; });
+    at(t + 2700, () => {
+      $('cF').classList.add('on'); $('cmd').textContent = 'fact_check(answer, tender)';
+      $('fBig').textContent = r.fact.toFixed(2);
+      $('fClaims').innerHTML = r.checks.map(c => `<div>${c.ok ? '<span class="g">✓</span>' : '<span class="bd">✗</span>'} ${esc(c.why)}</div>`).join('') + `<div>точность ${r.precision.toFixed(2)} · полнота ${r.coverage.toFixed(2)}</div>`;
+      const dN = r.nrPass !== r.factPass, dW = r.wrPass !== r.factPass;
+      if (dN) $('nV').innerHTML += ' <b class="bd">≠ фактам</b>';
+      if (dW) $('wV').innerHTML += ' <b class="bd">≠ фактам</b>';
+    });
+    at(t + 9000, run);
+  }
+  run();
+})();
+</script>
+</body></html>
