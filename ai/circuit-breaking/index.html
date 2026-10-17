@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Circuit breaker: автомат CLOSED/OPEN/HALF-OPEN против падения API, событийная симуляция с таймаутами и запасными ответами.">
+<title>Circuit Breaker Live</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: phone-portrait terminal; service health + two request lanes on one virtual clock, breaker state machine, transitions log, scoreboard */
+:root{
+  --bg:#0a0b12; --win:#10111b; --line:#262a3c; --dim:#676c88; --fg:#d8dbea;
+  --amber:#f2a65a; --blue:#7aa2ff; --violet:#b69cff; --green:#6fd59a; --red:#ff7a85; --cyan:#6fd3d6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:11.5px;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px}
+@media (min-width:380px){body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+a{color:inherit}
+.win{max-width:470px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 70px rgba(111,211,214,.07)}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:10px}
+.bar i{width:9px;height:9px;border-radius:50%;display:block}
+.bar span{flex:1;text-align:center;margin-right:33px}
+.inner{padding:12px 12px 8px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10.5px;color:var(--dim)}
+.top a{text-decoration:none} .top a:hover,.top a:focus-visible{color:var(--cyan);outline:none}
+h1{font-size:13px;font-weight:600;letter-spacing:.06em;margin:0;text-wrap:balance}
+h1 b{color:var(--cyan);font-weight:600}
+.lead{color:var(--dim);margin:-4px 0 0;line-height:1.55;font-size:11px}
+.box{border:1px solid var(--c);border-radius:4px;padding:8px 9px;min-width:0;box-shadow:0 0 16px color-mix(in srgb,var(--c) 16%,transparent)}
+.hd{display:flex;justify-content:space-between;gap:6px;color:var(--c);font-weight:600;margin-bottom:6px;font-size:11px}
+.hd small{color:var(--dim);font-weight:400;white-space:nowrap}
+.k{color:var(--dim)}
+.note{color:var(--dim);font-size:10.5px;line-height:1.55;margin-top:6px}
+.note b{color:var(--fg);font-weight:500}
+.g{color:var(--green)} .bd{color:var(--red)} .am{color:var(--amber)}
+
+.clock{font-size:12px;font-variant-numeric:tabular-nums}
+.clock b{color:var(--cyan);font-weight:600}
+svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:9.5px;color:var(--dim);margin-top:4px}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:1px;margin-right:4px;background:var(--c)}
+
+.fsm{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center}
+.fs{border:1px solid var(--line);border-radius:3px;padding:6px 2px;font-size:10px;color:var(--dim);transition:all .25s;line-height:1.4}
+.fs b{display:block;font-size:11px;font-weight:600}
+.fs.closed b{color:var(--green)} .fs.open b{color:var(--red)} .fs.half b{color:var(--amber)}
+.fs.on.closed{border-color:var(--green);box-shadow:0 0 12px rgba(111,213,154,.3);color:var(--fg)}
+.fs.on.open{border-color:var(--red);box-shadow:0 0 12px rgba(255,122,133,.3);color:var(--fg)}
+.fs.on.half{border-color:var(--amber);box-shadow:0 0 12px rgba(242,166,90,.3);color:var(--fg)}
+.rules{font-size:9.5px;color:var(--dim);margin-top:6px;line-height:1.5}
+.tlog{display:flex;flex-direction:column;gap:2px;margin-top:6px;min-height:72px}
+.tl{display:grid;grid-template-columns:48px 1fr;gap:6px;font-size:10px;animation:pop .3s ease-out;font-variant-numeric:tabular-nums}
+.tl .t{color:var(--dim)}
+@keyframes pop{0%{transform:translateY(3px);opacity:0}100%{transform:none;opacity:1}}
+
+.score{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 10px;font-size:10.5px;font-variant-numeric:tabular-nums;align-items:center}
+.score .h{font-size:9.5px;color:var(--dim)}
+.score b{font-weight:600}
+.live{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;margin-top:6px}
+.live b{color:var(--fg);font-weight:500}
+
+.prompt{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prompt .p{color:var(--violet)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>~/ai — production — circuit breaker</span></div>
+  <div class="inner">
+    <div class="top"><a href="../">‹ ai engineering</a><span>21 / продакшен</span></div>
+    <h1>CIRCUIT BREAKING · <b>НЕ ЛОМИТЬСЯ В ЗАКРЫТУЮ ДВЕРЬ</b></h1>
+    <p class="lead">Внешний API (модель, Prozorro, банк) иногда падает. Если продолжать слать ему запросы, каждый ждёт таймаут, пользователи висят, а упавшему сервису ещё тяжелее подняться. Предохранитель после серии ошибок «размыкает цепь»: запросы сразу идут на запасной вариант, а сервис время от времени осторожно проверяется.</p>
+
+    <div class="box" style="--c:var(--cyan)">
+      <div class="hd">01 · запросы на одних часах <span class="clock">t = <b id="clock">0.0</b> с</span></div>
+      <svg id="tl" viewBox="0 0 340 196"></svg>
+      <div class="legend"><span style="--c:var(--green)">ответ сервиса</span><span style="--c:var(--red)">таймаут 3 с</span><span style="--c:var(--amber)">запасной ответ</span><span style="--c:#3a3f5a">сервис лежит</span></div>
+      <div class="note">Высота столбика — сколько ждал пользователь. Новый запрос приходит каждые 0.5 с.</div>
+      <div class="live" id="live"></div>
+    </div>
+
+    <div class="box" style="--c:var(--amber)">
+      <div class="hd">02 · предохранитель <small>автомат из трёх состояний</small></div>
+      <div class="fsm">
+        <div class="fs closed" id="fC"><b>CLOSED</b>запросы идут в сервис</div>
+        <div class="fs open" id="fO"><b>OPEN</b>сразу запасной ответ</div>
+        <div class="fs half" id="fH"><b>HALF-OPEN</b>один пробный запрос</div>
+      </div>
+      <div class="rules">CLOSED → OPEN: 3 ошибки подряд · OPEN → HALF-OPEN: прошло 4 с · HALF-OPEN → CLOSED: проба прошла · HALF-OPEN → OPEN: проба упала</div>
+      <div class="tlog" id="tlog"></div>
+    </div>
+
+    <div class="box" style="--c:var(--green)">
+      <div class="hd">03 · итог за 30 секунд <small>60 запросов на каждого</small></div>
+      <div class="score" id="score"><span class="k">ждёт окончания…</span></div>
+      <div class="note" id="scoreNote"></div>
+    </div>
+
+    <div class="note">Автомат состояний и событийная симуляция на виртуальных часах выполняются в браузере: приход запросов, ожидание, таймауты, переходы предохранителя, счёт. Сценарий доступности сервиса (работает до 8 с, лежит до 20 с, потом снова работает) и задержки (ответ 200 мс, таймаут 3 с, запасной 50 мс) заданы заранее.</div>
+    <div class="prompt"><span class="p">~/ai $</span> <span id="cmd">client.call(api) with breaker</span></div>
+  </div>
+</div>
+
+<script>
+// event-driven simulation on a virtual clock (ms)
+const CFG = {T:30000, every:500, upLat:200, timeout:3000, fbLat:50, threshold:3, openFor:4000};
+const healthy = t => t < 8000 || t >= 20000;
+function simulate(withBreaker){
+  const reqs = [], trans = [];
+  let state = 'closed', fails = 0, openedAt = 0, probeInFlight = false;
+  const events = [];   // {t, kind:'arrive'|'done', id}
+  for (let t = 0; t < CFG.T; t += CFG.every) events.push({t, kind:'arrive', id:reqs.push({at:t}) - 1});
+  const push = e => { events.push(e); events.sort((a, b) => a.t - b.t || (a.kind === 'done' ? -1 : 1)); };
+  events.sort((a, b) => a.t - b.t);
+  const setState = (t, s, why) => { if (s !== state){ trans.push({t, from:state, to:s, why}); state = s; } };
+  while (events.length){
+    const e = events.shift(), r = reqs[e.id];
+    if (e.kind === 'arrive'){
+      if (withBreaker && state === 'open' && e.t - openedAt >= CFG.openFor) setState(e.t, 'half', 'пауза прошла, пробуем');
+      let route = 'upstream';
+      if (withBreaker && (state === 'open' || (state === 'half' && probeInFlight))) route = 'fallback';
+      if (withBreaker && state === 'half' && route === 'upstream') { probeInFlight = true; r.probe = true; }
+      r.route = route; r.stateAt = withBreaker ? state : 'none';
+      if (route === 'fallback'){ r.ok = false; r.fb = true; r.lat = CFG.fbLat; r.end = e.t + r.lat; continue; }
+      const up = healthy(e.t);
+      r.ok = up; r.lat = up ? CFG.upLat : CFG.timeout; r.end = e.t + r.lat;
+      push({t:r.end, kind:'done', id:e.id});
+    } else {
+      if (!withBreaker) continue;
+      if (r.ok){ fails = 0; if (state === 'half' && r.probe){ probeInFlight = false; setState(e.t, 'closed', 'пробный запрос прошёл'); } }
+      else {
+        if (state === 'half' && r.probe){ probeInFlight = false; openedAt = e.t; setState(e.t, 'open', 'пробный запрос упал'); }
+        else if (state === 'closed'){ fails++; if (fails >= CFG.threshold){ openedAt = e.t; fails = 0; setState(e.t, 'open', `${CFG.threshold} ошибки подряд`); } }
+      }
+    }
+  }
+  const sum = reqs.reduce((a, r) => { a.n++; a.wait += r.lat; if (r.fb) a.fb++; else if (r.ok) a.ok++; else a.to++; return a; }, {n:0, ok:0, fb:0, to:0, wait:0});
+  return {reqs, trans, sum};
+}
+
+
+(() => {
+  const $ = id => document.getElementById(id);
+  const A = simulate(false), B = simulate(true);
+  const X0 = 30, X1 = 334, xt = t => X0 + t / CFG.T * (X1 - X0);
+  const H = {y:16, h:10}, LA = {y:40, h:62}, LB = {y:122, h:62};
+  const barH = (lat, lane) => Math.max(2, Math.log10(lat / 20) / Math.log10(CFG.timeout / 20) * (lane.h - 4));
+  const col = r => r.fb ? '#f2a65a' : r.ok ? '#6fd59a' : '#ff7a85';
+
+  // static frame
+  const g = [];
+  g.push(`<text x="${X0 - 4}" y="${H.y + 8}" fill="#676c88" font-size="7.5" text-anchor="end">API</text>`);
+  for (let t = 0; t < CFG.T; t += 500) g.push(`<rect x="${xt(t)}" y="${H.y}" width="${xt(500) - xt(0) - .3}" height="${H.h}" fill="${healthy(t) ? 'rgba(111,213,154,.35)' : '#3a3f5a'}"/>`);
+  [LA, LB].forEach((L, k) => {
+    g.push(`<rect x="${X0}" y="${L.y}" width="${X1 - X0}" height="${L.h}" fill="none" stroke="#262a3c"/>`);
+    g.push(`<text x="${X0 - 4}" y="${L.y + L.h / 2 + 3}" fill="${k ? '#6fd59a' : '#ff7a85'}" font-size="7.5" text-anchor="end">${k ? 'с' : 'без'}</text>`);
+    g.push(`<text x="${X0 + 3}" y="${L.y - 3}" fill="#676c88" font-size="7.5">${k ? 'с предохранителем' : 'без предохранителя'}</text>`);
+    for (let t = 8000; t < 20000; t += 500) g.push(`<rect x="${xt(t)}" y="${L.y}" width="${xt(500) - xt(0)}" height="${L.h}" fill="rgba(58,63,90,.35)"/>`);
+  });
+  B.trans.forEach(tr => g.push(`<line x1="${xt(tr.t)}" x2="${xt(tr.t)}" y1="${LB.y}" y2="${LB.y + LB.h}" stroke="${tr.to === 'open' ? '#ff7a85' : tr.to === 'half' ? '#f2a65a' : '#6fd59a'}" stroke-dasharray="2 2" opacity="0" data-tr="${tr.t}"/>`));
+  for (let s = 0; s <= 30; s += 5) g.push(`<text x="${xt(s * 1000)}" y="194" fill="#676c88" font-size="7.5" text-anchor="middle">${s}с</text>`);
+  g.push(`<g id="barsA"></g><g id="barsB"></g><line id="cur" x1="${X0}" x2="${X0}" y1="${H.y - 4}" y2="${LB.y + LB.h + 2}" stroke="#6fd3d6" stroke-width="1"/>`);
+  $('tl').innerHTML = g.join('');
+
+  const bw = (xt(500) - xt(0)) * .7;
+  const bar = (r, L) => { const h = barH(r.lat, L); return `<rect x="${xt(r.at)}" y="${L.y + L.h - h}" width="${bw}" height="${h}" fill="${col(r)}"${r.probe ? ' stroke="#fff" stroke-width=".8"' : ''}/>`; };
+  const fsm = s => ['C', 'O', 'H'].forEach(k => $('f' + k).classList.toggle('on', ({closed:'C', open:'O', half:'H'})[s] === k));
+  const stName = s => ({closed:'CLOSED', open:'OPEN', half:'HALF-OPEN'})[s];
+
+  let raf = 0, timers = [];
+  function run(){
+    cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = [];
+    $('barsA').innerHTML = ''; $('barsB').innerHTML = ''; $('tlog').innerHTML = ''; $('score').innerHTML = '<span class="k">ждёт окончания…</span>'; $('scoreNote').innerHTML = '';
+    document.querySelectorAll('[data-tr]').forEach(l => l.setAttribute('opacity', '0'));
+    fsm('closed');
+    const shownA = new Set(), shownB = new Set(), shownT = new Set();
+    const SPEED = 1.6;   // virtual ms per real ms
+    const t0 = performance.now();
+    const tick = now => {
+      const vt = Math.min(CFG.T + 3000, (now - t0) * SPEED);
+      $('clock').textContent = (Math.min(vt, CFG.T) / 1000).toFixed(1);
+      $('cur').setAttribute('x1', xt(Math.min(vt, CFG.T))); $('cur').setAttribute('x2', xt(Math.min(vt, CFG.T)));
+      A.reqs.forEach((r, i) => { if (!shownA.has(i) && r.end <= vt){ shownA.add(i); $('barsA').insertAdjacentHTML('beforeend', bar(r, LA)); } });
+      B.reqs.forEach((r, i) => { if (!shownB.has(i) && r.end <= vt){ shownB.add(i); $('barsB').insertAdjacentHTML('beforeend', bar(r, LB)); } });
+      let st = 'closed';
+      B.trans.forEach(tr => { if (tr.t <= vt){ st = tr.to; if (!shownT.has(tr.t)){ shownT.add(tr.t); document.querySelector(`[data-tr="${tr.t}"]`).setAttribute('opacity', '1'); $('tlog').insertAdjacentHTML('beforeend', `<div class="tl"><span class="t">${(tr.t / 1000).toFixed(1)} с</span><span>${stName(tr.from)} → <b style="color:${tr.to === 'open' ? 'var(--red)' : tr.to === 'half' ? 'var(--amber)' : 'var(--green)'}">${stName(tr.to)}</b> · ${tr.why}</span></div>`); $('cmd').textContent = `breaker: ${stName(tr.to)} — ${tr.why}`; } } });
+      fsm(st);
+      const live = (R, shown) => { let w = 0, n = 0, to = 0; shown.forEach(i => { w += R.reqs[i].lat; n++; if (!R.reqs[i].ok && !R.reqs[i].fb) to++; }); return {avg:n ? Math.round(w / n) : 0, to, n}; };
+      const la = live(A, shownA), lb = live(B, shownB);
+      $('live').innerHTML = `<span>без: среднее <b>${la.avg} мс</b> · таймаутов <b class="bd">${la.to}</b></span><span>с: среднее <b>${lb.avg} мс</b> · таймаутов <b class="bd">${lb.to}</b></span>`;
+      if (vt < CFG.T + 3000) raf = requestAnimationFrame(tick); else finish();
+    };
+    raf = requestAnimationFrame(tick);
+  }
+  function finish(){
+    const a = A.sum, b = B.sum;
+    $('score').innerHTML = `<span class="h"></span><span class="h">без предохранителя</span><span class="h">с предохранителем</span>
+      <span class="k">среднее ожидание</span><b class="bd">${Math.round(a.wait / a.n)} мс</b><b class="g">${Math.round(b.wait / b.n)} мс</b>
+      <span class="k">таймаутов</span><b class="bd">${a.to}</b><b class="g">${b.to}</b>
+      <span class="k">суммарно ждали</span><b class="bd">${(a.wait / 1000).toFixed(1)} с</b><b class="g">${(b.wait / 1000).toFixed(1)} с</b>
+      <span class="k">настоящих ответов</span><b class="g">${a.ok}</b><b class="am">${b.ok}</b>
+      <span class="k">запасных ответов</span><b>${a.fb}</b><b class="am">${b.fb}</b>`;
+    const reopen = B.trans.find(t => t.to === 'closed');
+    $('scoreNote').innerHTML = `Цена предохранителя тоже видна: сервис ожил в 20.0 с, а цепь замкнулась только в ${(reopen.t / 1000).toFixed(1)} с, после паузы и удачной пробы. Запросы в этом окне получили запасной ответ, хотя могли бы получить настоящий, поэтому настоящих ответов меньше (${b.ok} против ${a.ok}). Длину паузы выбирают между «быстрее заметить восстановление» и «меньше нагружать больной сервис».`;
+    $('cmd').textContent = `среднее ожидание: ${Math.round(a.wait / a.n)} → ${Math.round(b.wait / b.n)} мс`;
+    timers.push(setTimeout(run, 9000));
+  }
+  run();
+})();
+</script>
+
+</body>
+</html>
