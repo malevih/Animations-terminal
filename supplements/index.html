@@ -173,7 +173,7 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .clash li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--faint);list-style:none}
 .clash ul{margin:0;padding:0}
 .clash .t{color:var(--muted);font-size:13.5px}
-@media (min-width:901px){.note{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;overscroll-behavior:contain}}
+@media (min-width:901px){.note{overflow:auto;overscroll-behavior:contain;box-sizing:border-box}}
 .note .add{justify-self:start}
 .nhead{display:grid;gap:2px}
 .ns{display:grid;gap:8px}
@@ -253,6 +253,10 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .tcaution{border-left:3px solid var(--warn);padding-left:12px;display:grid;gap:2px;margin-top:6px}
 .tcaution b{color:var(--warn)}
 .tcaution span{color:var(--muted);font-size:14px}
+.legendl{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13.5px;color:var(--muted)}
+.legendl li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:center}
+.legendl .ln{width:22px}
+.legendl .thick{width:22px;height:0;border-top:3px solid var(--syn);box-shadow:0 5px 0 -1px var(--muted)}
 .plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 @media (max-width:960px){.plan{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:540px){.plan{grid-template-columns:minmax(0,1fr)}}
@@ -683,7 +687,10 @@ goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)r
 function measure(){
   const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
   W=w;H=w<600?Math.round(Math.max(900,w*2.35)):Math.round(Math.min(1000,Math.max(700,w*1.05)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";return [ow,oh];
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";
+  // side panel matches the graph height on desktop; long content scrolls inside it
+  const nt=document.getElementById("note");if(nt)nt.style.height=matchMedia("(min-width:901px)").matches?(H+2)+"px":"";
+  return [ow,oh];
 }
 measure();
 N.forEach((n,i)=>{const a=i/N.length*Math.PI*2,r=Math.min(W,H)*.38;n.x=W/2+Math.cos(a)*r;n.y=H/2+Math.sin(a)*r;n.vx=n.vy=0});
@@ -831,7 +838,16 @@ function renderNote(){
       <li>Магний и цинк в обычных дозах совместимы. Мешает только доза цинка около 140 мг.</li>
       <li>Кофе с L-теанином бодрит без нервозности.</li>
       <li>Глицин, магний и апигенин вечером хорошо сочетаются для сна.</li></ol>
-      <p class="kind">Выбери цель сверху, чтобы увидеть, какие добавки к ней относятся.</p>`;
+      <section class="ns"><h4>Как читать карту</h4>
+        <ul class="legendl">
+          <li><span class="ln syn"></span><span>Бегущая белая линия — помогают друг другу</span></li>
+          <li><span class="ln anti"></span><span>Красная — мешают, разноси по времени</span></li>
+          <li><span class="ln warn"></span><span>Жёлтый пунктир — мешают только в больших дозах</span></li>
+          <li><span class="thick"></span><span>Чем толще линия, тем надёжнее данные (A, B, C)</span></li>
+        </ul></section>
+      <section class="ns"><h4>Цвет кольца — цель</h4>
+        <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.n}</span></li>`).join("")}</ul></section>
+      <p class="kind">Нажми на цель сверху, чтобы оставить только её добавки, или на кружок, чтобы открыть карточку.</p>`;
   } else if(s.type==="node"){
     const n=byId[s.id];
     const inSet=mySet().has(n.id),inf=INFO[n.id]||{};
