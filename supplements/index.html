@@ -287,13 +287,41 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .pitem.lead3{background:var(--panel);border:1px solid var(--ink);border-radius:14px;padding:16px}
 .rk{font:800 18px/1.25 var(--f-body);color:#4A4D55}
 .rk.top{color:var(--ink)}
-.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start}
-.grp{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:16px 16px 6px;display:grid;gap:6px;position:relative;overflow:hidden}
+.groups{display:grid;gap:16px}
+.grp{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:12px;position:relative;overflow:hidden}
 .grp::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--gc)}
 .grp h3{display:flex;align-items:center;gap:8px}
 .grp .cnt{margin-left:auto;font:500 12px var(--f-mono);color:var(--muted)}
-.grp ol{list-style:none;margin:0;padding:0}
-.grp .pitem:first-child{border-top:0}
+.grp ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.grp .pitem{background:var(--raise);border:0;border-radius:12px;padding:14px}
+@media (max-width:400px){.grp ol{grid-template-columns:minmax(0,1fr)}}
+.pinfo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px}
+@media (max-width:900px){.pinfo{grid-template-columns:minmax(0,1fr)}}
+.pcard{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:16px;display:grid;gap:10px;align-content:start}
+.pcard.check{border-left:3px solid var(--g-energy)}
+.pcard h4,.advice h4{margin:0;font-size:11.5px;font-weight:500;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
+.causes{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.causes li{padding:5px 11px;border-radius:999px;background:var(--raise);font-size:13.5px}
+.pplan{display:grid;gap:10px}
+.pplan ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.pplan ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:540px){.pplan ol{grid-template-columns:minmax(0,1fr)}}
+.pplan li{background:var(--panel);border:1px solid var(--faint);border-radius:12px;padding:14px;display:grid;gap:6px;align-content:start}
+.pplan .when{font:700 11px var(--f-mono);color:var(--g-energy);letter-spacing:.06em;text-transform:uppercase}
+.pplan p{font-size:14px;color:var(--muted)}
+.adv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+@media (max-width:760px){.adv{grid-template-columns:minmax(0,1fr)}}
+.adv section{display:grid;gap:10px;align-content:start}
+.alist{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.alist li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px}
+.alist li div{display:grid;gap:3px}
+.alist .t{color:var(--muted);font-size:13.5px}
+.ok{color:var(--good);font-size:13.5px}
+.bad{color:var(--anti);font-size:13.5px;font-weight:500}
+abbr.term{text-decoration:none;border-bottom:1px dotted currentColor;cursor:help}
+abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+#tip{position:fixed;z-index:60;background:var(--raise);border:1px solid var(--muted);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.45;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.6);display:grid;gap:4px;pointer-events:none}
+#tip[hidden]{display:none}
 .tsteps .why{display:block;color:var(--ink);font-size:13.5px;margin-top:3px;padding-left:10px;border-left:2px solid var(--faint)}
 .learn{display:grid;gap:10px;border-top:1px solid var(--faint);padding-top:16px}
 .learn .lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
@@ -404,6 +432,8 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
       <div class="pchips" id="pchips"></div>
     </div>
 
+    <div class="box advice" id="clash" hidden><h2>Подсказки к твоему набору</h2><div class="adv"><section id="advBad"></section><section id="advGood"></section></div></div>
+
     <div class="schedhead">
       <h2 id="schedTitle">Расписание</h2>
       <div class="frow" role="group" aria-label="Что показать в расписании">
@@ -412,7 +442,6 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
       </div>
     </div>
     <div class="tl" id="plan"></div>
-    <div class="box clash" id="clash" hidden><h2>Обрати внимание в твоём наборе</h2><ul id="clashList"></ul></div>
 
     <div class="box skip">
       <h2>Что обычно можно не пить</h2>
@@ -510,7 +539,7 @@ const E=[
  ["E","C","syn","B","Витамин C восстанавливает окисленный витамин E, и тот снова работает."],
  ["E","Se","syn","B","Оба защищают мембраны клеток от окисления. Селен входит в фермент глутатионпероксидазу."],
  ["Q10","E","syn","C","Q10 помогает восстанавливать окисленный витамин E. Оба растворяются в жирах, их удобно пить вместе с едой."],
- ["Se","I","syn","B","Селен нужен, чтобы гормон T4 превращался в активный T3, и защищает щитовидную железу. Йод без селена работает хуже."],
+ ["Se","I","syn","B","Селен нужен, чтобы гормон щитовидной железы T4 превращался в активный T3, и защищает щитовидную железу. Йод без селена работает хуже."],
  ["Cur","Pip","syn","B","Пиперин замедляет распад куркумина в печени и кишечнике. В одном известном исследовании биодоступность выросла примерно в 20 раз."],
  ["Zn","A","syn","B","Цинк нужен для белка, который переносит витамин A в крови."],
  ["Cu","Fe","syn","B","Медь нужна для обмена железа. При дефиците меди бывает анемия, похожая на железодефицитную."],
@@ -716,6 +745,78 @@ function pairName(e){return `${byId[e.a].name} + ${byId[e.b].name}`}
 function gcol(n){return n.g.length?`var(${G[n.g[0]].c})`:"var(--muted)"}
 function tags(goals){return `<div class="tags">${goals.map(k=>`<span class="tag" style="color:var(${G[k].c})">${G[k].n}</span>`).join("")}</div>`}
 
+/* ---------- glossary: dotted terms with a tap/hover explanation ---------- */
+const GL=[
+ ["T4","Тироксин — главный гормон щитовидной железы. Сам по себе почти неактивен: организм превращает его в T3."],
+ ["T3","Трийодтиронин — активный гормон щитовидной железы. Управляет скоростью обмена веществ, температурой тела и энергией."],
+ ["ТТГ","Тиреотропный гормон гипофиза, он командует щитовидной железой. Высокий ТТГ — щитовидка работает слабо, низкий — слишком активно. Главный анализ щитовидной железы."],
+ ["гомоцистеин","Аминокислота, которая копится при нехватке B9, B12 и B6. Высокий уровень связан с риском инсульта и болезней сосудов.",1],
+ ["ферритин","Белок, в котором хранится железо. Анализ показывает запасы железа: ниже 30 нг/мл — дефицит, даже если гемоглобин ещё в норме.",1],
+ ["25(OH)D","Анализ на витамин D: показывает, сколько его накоплено в организме."],
+ ["ГАМК","Главный тормозящий медиатор мозга. Успокаивает нервную систему, на него действуют многие успокоительные и снотворные."],
+ ["кортизол","Гормон стресса из надпочечников. Утром нужен для бодрости, но постоянно высокий кортизол ухудшает сон, давление и иммунитет.",1],
+ ["глутатион","Главный антиоксидант внутри клеток. Организм делает его из глицина, цистеина и глутамата.",1],
+ ["митохондри","Энергетические станции клетки: в них из еды и кислорода получается энергия.",1],
+ ["CD38","Фермент, который расщепляет NAD+. С возрастом его становится больше, и уровень NAD+ падает."],
+ ["NAD+","Молекула, без которой не работают митохондрии и ферменты, чинящие ДНК. С возрастом её становится меньше."],
+ ["СРБ","С-реактивный белок — анализ на воспаление. Хронически повышенный СРБ связан с риском болезней сердца."],
+ ["IL-6","Интерлейкин-6 — сигнальная молекула воспаления."],
+ ["ЛПНП","«Плохой» холестерин. Чем его больше, тем быстрее растут бляшки в сосудах."],
+ ["триглицерид","Жиры в крови. Высокий уровень повышает риск болезней сердца, растёт от сахара, алкоголя и лишнего веса.",1],
+ ["VO2max","Сколько кислорода организм может использовать за минуту на кг веса. Главный показатель выносливости и сильный предиктор продолжительности жизни."],
+ ["остеокальцин","Белок кости, который встраивает в неё кальций. Его активирует витамин K2.",1],
+ ["MGP","Белок, который мешает кальцию оседать в стенках сосудов. Активируется витамином K2."],
+ ["метаанализ","Исследование, которое объединяет результаты многих других исследований. Самый надёжный тип доказательств.",1],
+ ["апноэ","Остановки дыхания во сне, обычно с громким храпом. Повышают давление и вызывают сонливость днём."],
+ ["ХОБЛ","Хроническая обструктивная болезнь лёгких, чаще всего от курения."],
+ ["EPA","Эйкозапентаеновая кислота — омега-3, которая сильнее всего гасит воспаление."],
+ ["DHA","Докозагексаеновая кислота — омега-3, главный жир мозга и сетчатки глаза."],
+ ["ретинол","Готовая форма витамина A из продуктов животного происхождения. В отличие от бета-каротина может накапливаться до токсичных доз.",1],
+ ["кальциноз","Отложение кальция в стенках сосудов, делает их жёсткими.",1],
+ ["метильн","Метильные группы нужны для метилирования — реакций, которыми организм включает и выключает гены и перерабатывает вещества. Для них нужны B9, B12 и B6.",1],
+ ["гепсидин","Гормон печени, который регулирует всасывание железа.",1],
+ ["адаптоген","Растение, которое помогает легче переносить стресс. Термин не строго научный.",1],
+ ["оксид азота","Газ, который расширяет сосуды и улучшает кровоток."],
+ ["биодоступност","Какая доля вещества реально попадает в кровь после приёма.",1],
+ ["инсулин","Гормон поджелудочной железы, который помогает клеткам забирать сахар из крови.",1],
+ ["DASH","Диета против гипертонии: овощи, фрукты, цельные злаки, молочка, мало соли, красного мяса и сладкого."],
+ ["КПТ","Когнитивно-поведенческая терапия — вид психотерапии с доказанной пользой при тревоге, депрессии и бессоннице."],
+ ["серотонин","Медиатор мозга, влияет на настроение, сон и аппетит.",1],
+ ["дофамин","Медиатор мотивации, внимания и удовольствия.",1],
+ ["норадреналин","Медиатор бодрости и концентрации, выделяется при стрессе и на холоде.",1],
+ ["T-клет","Иммунные клетки, которые уничтожают заражённые клетки и управляют иммунным ответом.",1],
+ ["ОРВИ","Острые респираторные вирусные инфекции — простуда и похожие болезни."],
+ ["денситометри","Рентгеновское исследование плотности костей (DXA). Основной способ найти остеопороз.",1],
+ ["остеопороз","Болезнь, при которой кости теряют плотность и легко ломаются.",1],
+ ["артроз","Износ хряща в суставах: боль при нагрузке, скованность, хруст.",1],
+ ["коллаген","Главный белок соединительной ткани: кожи, связок, хрящей и костей.",1],
+ ["лейцин","Аминокислота, которая запускает рост мышц.",1],
+ ["карнозин","Вещество в мышцах, которое гасит кислоту при интенсивной работе.",1]
+];
+const glRe=new RegExp(GL.map(([t,,st])=>`(${t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}${st?"\\p{L}{0,3}(?![\\p{L}\\d])":"(?![\\p{L}\\d])"})`).join("|").replace(/^/,"(?<![\\p{L}\\d])(?:")+")","giu");
+function decorate(root){
+  if(!root)return;const used=new Set(),walk=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest(".term,h2,h3,h4,.ptype,.lbl,.kind,svg,.tag,.ev")?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  const nodes=[];while(walk.nextNode())nodes.push(walk.currentNode);
+  nodes.forEach(tn=>{const txt=tn.nodeValue;glRe.lastIndex=0;let m,last=0,frag=null;
+    while((m=glRe.exec(txt))){const gi=m.slice(1).findIndex(x=>x!==undefined);if(gi<0||used.has(gi))continue;used.add(gi);
+      frag=frag||document.createDocumentFragment();frag.append(txt.slice(last,m.index));
+      const ab=document.createElement("abbr");ab.className="term";ab.tabIndex=0;ab.dataset.gi=gi;ab.textContent=m[0];frag.append(ab);last=m.index+m[0].length}
+    if(frag){frag.append(txt.slice(last));tn.replaceWith(frag)}});
+}
+const tipEl=document.createElement("div");tipEl.id="tip";tipEl.setAttribute("role","tooltip");tipEl.hidden=true;document.body.appendChild(tipEl);
+let tipFor=null,tipClicked=false;
+function showTip(t){tipFor=t;const txt=GL[+t.dataset.gi][1];tipEl.innerHTML=`<b>${esc(t.textContent)}</b>${esc(txt)}`;tipEl.hidden=false;
+  const r=t.getBoundingClientRect(),w=Math.min(320,innerWidth-24);tipEl.style.width=w+"px";
+  let x=Math.min(Math.max(12,r.left+r.width/2-w/2),innerWidth-w-12),y=r.bottom+8;
+  if(y+tipEl.offsetHeight>innerHeight-12)y=r.top-tipEl.offsetHeight-8;tipEl.style.left=x+"px";tipEl.style.top=y+"px"}
+function hideTip(){tipEl.hidden=true;tipFor=null}
+document.addEventListener("mouseover",ev=>{const t=ev.target.closest&&ev.target.closest(".term");if(t){if(t!==tipFor){tipClicked=false;showTip(t)}}else if(tipFor&&!ev.target.closest("#tip"))hideTip()});
+document.addEventListener("focusin",ev=>{const t=ev.target.closest&&ev.target.closest(".term");if(t)showTip(t)});
+document.addEventListener("focusout",ev=>{if(ev.target.closest&&ev.target.closest(".term"))hideTip()});
+// a tap on a term explains it instead of activating the button it sits in
+document.addEventListener("click",ev=>{const t=ev.target.closest&&ev.target.closest(".term");if(t){ev.preventDefault();ev.stopPropagation();if(tipFor===t&&!tipEl.hidden&&tipClicked){hideTip();tipClicked=false}else{showTip(t);tipClicked=true}}else if(!ev.target.closest("#tip"))hideTip()},true);
+addEventListener("scroll",hideTip,{passive:true});
+
 /* ---------- goal chips ---------- */
 const goalRow=document.getElementById("goalRow");
 goalRow.insertAdjacentHTML("beforeend",`<button class="chip goal" id="goal-all" data-g="" aria-pressed="true">Все</button>`+
@@ -896,6 +997,9 @@ function renderNote(){
       <section class="ns"><h4>Как принимать</h4><p class="how">${esc(n.tip)}</p></section>
       ${inf.forms?`<section class="ns"><h4>Какую форму брать</h4><ul class="forms">${inf.forms.map(([f,g,t])=>`<li><div class="fh"><b>${esc(f)}</b><span class="grade ${g}">${GR[g]}</span></div><span class="t">${esc(t)}</span></li>`).join("")}</ul></section>`:""}
       ${inf.buy?`<section class="ns"><h4>Важно</h4><p>${esc(inf.buy)}</p></section>`:""}
+      ${(()=>{const ms=mySet(),comp=E.filter(e=>(e.a===n.id&&ms.has(e.b))||(e.b===n.id&&ms.has(e.a)));
+        return comp.length?`<section class="ns"><h4>С твоим набором</h4><ul class="alist">${comp.map(e=>{const o=byId[e.a===n.id?e.b:e.a];
+          return `<li><span class="dot ${e.t}"></span><div><b>${e.t==="syn"?"Хорошо вместе":e.t==="anti"?"Мешают друг другу":"Зависит от дозы"}: ${esc(o.name)}</b><span class="t">${e.t==="anti"?"Пей их в разное время, минимум через 2 часа. ":""}${esc(e.txt)}</span></div></li>`}).join("")}</ul></section>`:""})()}
       <section class="ns"><h4>Связи</h4>${connList(n)}</section>`;
   } else {
     const e=E[s.i];
@@ -909,6 +1013,7 @@ function renderNote(){
   note.classList.toggle("open",open);
   note.querySelector("#nclose").addEventListener("click",()=>{state.sel=null;state.help=false;state.panelOff=true;applyView();renderNote()});
   note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
+  decorate(note);
   note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
   note.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>toggleItem(b.dataset.toggle)));
   note.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>{state.goal=b.dataset.goal;state.sel=null;
@@ -927,6 +1032,7 @@ function renderTable(){
 }
 document.querySelectorAll("[data-sort]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.sort;if(sortSt.k===k)sortSt.d*=-1;else{sortSt.k=k;sortSt.d=1}renderTable()}));
 renderTable();
+decorate(document.getElementById("table"));
 document.getElementById("table").addEventListener("click",ev=>{const r=ev.target.closest(".trow");if(!r)return;select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
 
 document.querySelectorAll(".rel").forEach(b=>b.addEventListener("click",()=>{
@@ -1004,6 +1110,21 @@ document.getElementById("skip").innerHTML=SKIP.map(([a,b])=>`<li><b>${a}</b><spa
 
 function itemBtn(x){const n=byId[x.id];return `<button class="titem${x.opt?" opt":""}" data-n="${x.id}">${pill(n)}<span><b>${esc(n.name)}</b>${x.d?`<span class="t">${x.opt?"по желанию · ":""}${esc(x.d)}</span>`:""}</span></button>`}
 function rows(list){return list.map(r=>`<div class="tline"><div class="tl-when"><span class="when">${r.w}</span><h3>${r.t}</h3><p>${r.p}</p></div><div class="tl-items">${r.its.map(itemBtn).join("")}</div></div>`).join("")}
+const SLOTNAME={empty:"утром натощак",morning:"утром с кофе",meal:"с едой",dinner:"с ужином",bed:"перед сном",any:"в любое время"};
+// what goes well with the set, and how to split what clashes
+function setAdvice(m){
+  const cl=E.filter(e=>e.t!=="syn"&&m.has(e.a)&&m.has(e.b));
+  const sug=new Map();
+  E.filter(e=>e.t==="syn").forEach(e=>{const ia=m.has(e.a),ib=m.has(e.b);if(ia===ib)return;
+    const add=ia?e.b:e.a,have=ia?e.a:e.b,cur=sug.get(add);if(!cur||cur.e.ev>e.ev)sug.set(add,{add,have,e})});
+  return {cl,sug:[...sug.values()].sort((x,y)=>x.e.ev.localeCompare(y.e.ev)).slice(0,6)};
+}
+function clashLine(e,m){
+  const a=m.get(e.a),b=m.get(e.b),na=byId[e.a].name,nb=byId[e.b].name;
+  if(e.t==="warn")return `<span class="ok">В обычных дозах можно вместе.</span>`;
+  if(a.sl===b.sl&&a.sl!=="any")return `<span class="bad">Сейчас оба ${SLOTNAME[a.sl]}. Разнеси минимум на 2 часа: например, ${na} — ${SLOTNAME[a.sl]}, а ${nb} — ${SLOTNAME[a.sl==="dinner"?"meal":"dinner"]}.</span>`;
+  return `<span class="ok">В расписании уже разнесены: ${na} — ${SLOTNAME[a.sl]}, ${nb} — ${SLOTNAME[b.sl]}.</span>`;
+}
 function renderPlan(){
   const m=mySet();
   document.querySelectorAll(".add[data-s]").forEach(b=>{const on=picked.has(b.dataset.s);b.setAttribute("aria-pressed",on);b.textContent=on?"В наборе ✓":"Добавить в набор";document.getElementById("stack-"+b.dataset.s).classList.toggle("on",on)});
@@ -1019,9 +1140,11 @@ function renderPlan(){
   title.textContent=items.length?`Мой набор: ${countPills(req.map(x=>x.id))} в день`+(items.length>req.length?` + ${items.length-req.length} по желанию`:""):"Мой набор";
   if(!items.length){plan.innerHTML=`<p class="empty">Набор пуст. Добавь «Базу» или выбери добавки выше, и здесь появится расписание на день.</p>`;clash.hidden=true;return}
   plan.innerHTML=rows(SLOTS.map(k=>({...SLOT[k],its:items.filter(x=>x.sl===k)})).filter(r=>r.its.length));
-  const cl=E.filter(e=>e.t!=="syn"&&m.has(e.a)&&m.has(e.b));
-  clash.hidden=!cl.length;
-  document.getElementById("clashList").innerHTML=cl.map(e=>`<li><span class="dot ${e.t}"></span><span><b>${esc(pairName(e))}</b><br><span class="t">${esc(e.txt)}</span></span></li>`).join("");
+  const {cl,sug}=setAdvice(m);
+  clash.hidden=false;
+  document.getElementById("advBad").innerHTML=`<h4>Несочетаемое</h4>`+(cl.length?`<ul class="alist">${cl.map(e=>`<li><span class="dot ${e.t}"></span><div><b>${esc(pairName(e))}</b><span class="t">${esc(e.txt)}</span>${clashLine(e,m)}</div></li>`).join("")}</ul>`:`<p class="ok">Конфликтов в наборе нет ✓</p>`);
+  document.getElementById("advGood").innerHTML=`<h4>Хорошо добавить</h4>`+(sug.length?`<ul class="alist">${sug.map(x=>`<li><span class="dot syn"></span><div><b>${esc(byId[x.add].name)} <span class="ev">${x.e.ev}</span></b><span class="t">К «${esc(byId[x.have].name)}»: ${esc(x.e.txt)}</span><button class="go" data-add="${x.add}">+ Добавить в набор</button></div></li>`).join("")}</ul>`:`<p class="kind">Подсказок пока нет.</p>`);
+  decorate(clash);
 }
 document.getElementById("stacks").addEventListener("click",ev=>{const b=ev.target.closest(".add[data-s]");if(!b)return;
   const id=b.dataset.s,st=STACKS.find(x=>x.id===id);
@@ -1031,6 +1154,8 @@ document.getElementById("pchips").addEventListener("click",ev=>{const b=ev.targe
 document.getElementById("resetSet").addEventListener("click",()=>{picked=new Set(["base"]);extras.clear();excluded.clear();schedMode="mine";save();renderPlan()});
 document.querySelectorAll("[data-m]").forEach(b=>b.addEventListener("click",()=>{schedMode=b.dataset.m;renderPlan()}));
 renderPlan();
+document.getElementById("clash").addEventListener("click",ev=>{const b=ev.target.closest("[data-add]");if(b)toggleItem(b.dataset.add)});
+decorate(document.getElementById("stacks"));
 
 document.getElementById("plan").addEventListener("click",ev=>{const b=ev.target.closest("[data-n]");if(!b)return;showTab("graph");select({type:"node",id:b.dataset.n});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
 
@@ -1193,6 +1318,7 @@ function renderTrain(){
     <span class="more">${trSel===it.n?"Открыто выше ↑":"Подробнее →"}</span>
   </article>`).join("")}</div></section>`).join("")+
   `<section class="box"><h2>Тренировки и добавки</h2><ul class="nuance">${NU.map(([t,e])=>`<li><span>${t}</span><span class="ev">${e}</span></li>`).join("")}</ul></section></div>`;
+  decorate(document.getElementById("train"));
 }
 function openTrain(name){trSel=name;renderTrain();const d=document.getElementById("tdet");if(d)d.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})}
 document.getElementById("train").addEventListener("click",ev=>{
@@ -1348,6 +1474,53 @@ const PROB=[
    ["supp","Витамин C","Простуда немного короче. При тяжёлых нагрузках риск заболеть вдвое ниже.","B","n:C"]],
   missing:[["Пробиотики","В метаанализах немного снижают число простуд, эффект зависит от штамма."]]}
 ];
+// Causes and a first-month plan for every problem, plus bones & joints
+const PX={
+ pressure:{causes:["Лишний вес","Много соли и мало калия","Малоподвижность","Алкоголь","Недосып и апноэ","Хронический стресс","Наследственность и возраст"],
+  plan:[["Неделя 1","Купи тонометр на плечо и 7 дней меряй утром и вечером. Посчитай среднее."],["Неделя 2","Убери солёные снеки и полуфабрикаты, добавь овощи и бобовые в каждый приём пищи."],["Неделя 3","Ходи 30 минут в день и добавь изометрию: стульчик у стены 3 раза в неделю."],["Неделя 4","Снова посчитай среднее. Если оно всё ещё выше 135/85, иди к врачу со своими записями."]]},
+ sleep:{causes:["Плавающий режим","Кофеин после обеда","Яркий свет и экраны вечером","Алкоголь","Стресс и мысли по кругу","Храп и апноэ","Жаркая спальня"],
+  plan:[["Неделя 1","Выбери время подъёма и держи его каждый день, даже в выходные. Кофе только до 14:00."],["Неделя 2","10–20 минут света на улице утром. Спальня прохладная и тёмная."],["Неделя 3","Без экранов за час до сна, магний глицинат вечером."],["Неделя 4","Если всё ещё плохо — глицин или ашваганда. Бессонница дольше трёх месяцев — повод для КПТ-И."]]},
+ stress:{causes:["Недосып","Нагрузка без восстановления","Мало движения","Много кофеина","Одиночество","Постоянные новости и уведомления"],
+  plan:[["Неделя 1","5 минут циклического вздоха каждый день, лучше в одно и то же время."],["Неделя 2","3 кардиотренировки по 30–40 минут."],["Неделя 3","Кофеин не больше 2–3 чашек и только утром. Одна прогулка на природе в неделю."],["Неделя 4","Если стресс всё ещё мешает — курс ашваганды на 8 недель или разговор с психологом."]]},
+ irrit:{causes:["Недосып","Голод и скачки сахара","Перебор кофе","Алкоголь накануне","Накопленный стресс","Дефициты железа и D3, проблемы с щитовидной железой"],
+  plan:[["Неделя 1","Записывай, когда срываешься: голоден, не выспался, много кофе, пил накануне."],["Неделя 2","Белок и клетчатка в каждом приёме пищи, перекус вместо долгого голода."],["Неделя 3","Ровный режим сна и тренировки 3 раза в неделю."],["Неделя 4","Если лучше не стало — сдай ТТГ, ферритин, 25(OH)D и поговори со специалистом."]]},
+ focus:{causes:["Недосып","Уведомления и многозадачность","Скачки сахара после еды","Мало движения","Стресс"],
+  plan:[["Неделя 1","Работай блоками по 45–90 минут без телефона, уведомления выключены."],["Неделя 2","Кофе с L-теанином утром вместо второй и третьей чашки."],["Неделя 3","Короткая прогулка или зарядка перед сложной задачей."],["Неделя 4","Креатин 3–5 г в день, если много недосыпа и стресса."]]},
+ energy:{causes:["Недосып","Мало движения","Дефицит железа, B12 или D3","Проблемы с щитовидной железой","Скачки сахара","Хронический стресс"],
+  plan:[["Неделя 1","Сдай анализы: общий анализ крови, ферритин, B12, 25(OH)D, ТТГ, глюкоза."],["Неделя 2","Ровный режим сна и утренний свет."],["Неделя 3","Прогулка после еды и 2–3 лёгкие кардиотренировки."],["Неделя 4","Закрой найденные дефициты. Через 2–3 месяца пересдай анализы."]]},
+ endur:{causes:["Мало регулярного кардио","Только интенсивные тренировки без лёгкой базы","Дефицит железа","Плохое восстановление"],
+  plan:[["Неделя 1","3 тренировки в зоне 2 по 30–40 минут."],["Неделя 2","4 тренировки, одна из них длинная — 60 минут."],["Неделя 3","Добавь одни интервалы 4×4 в неделю."],["Неделя 4","Повтори тест Купера или посмотри оценку VO2max в часах."]]},
+ strength:{causes:["Нет постепенного роста нагрузки","Мало белка","Недосып","Слишком редкие тренировки"],
+  plan:[["Неделя 1","3 тренировки на всё тело: присед, тяга, жим, подтягивания. Лёгкий вес, ставим технику."],["Неделя 2","Посчитай белок: 1,6–2,2 г на кг. Если не хватает, добавь протеин."],["Неделя 3","Каждую неделю добавляй вес или повтор. Креатин 3–5 г ежедневно."],["Неделя 4","Сравни рабочие веса с первой неделей, следи за сном 7–9 часов."]]},
+ weight:{causes:["Ультраобработанная еда","Сладкие напитки и перекусы","Мало белка и клетчатки","Недосып","Мало шагов"],
+  plan:[["Неделя 1","Неделю просто записывай всё, что ешь, и считай калории."],["Неделя 2","Убери 300–500 ккал: в первую очередь сладкие напитки и перекусы, добавь белок."],["Неделя 3","8–10 тысяч шагов в день и 2 силовые тренировки."],["Неделя 4","Взвешивайся каждое утро и смотри на среднее за неделю, а не на отдельные дни."]]},
+ colds:{causes:["Недосып","Дефицит D3 или цинка","Много контактов с людьми","Перетренированность","Курение"],
+  plan:[["Неделя 1","Сдай 25(OH)D и ферритин."],["Неделя 2","Сон 7+ часов и регулярные умеренные нагрузки."],["Неделя 3","Закрой дефицит D3. Держи дома пастилки с цинком на первые сутки простуды."],["Неделя 4","Сделай прививку от гриппа до начала сезона."]]}
+};
+PROB.push({id:"bones",t:"Кости и суставы",
+  intro:"Плотность костей достигает пика примерно к 30 годам, потом каждый год теряется около 0,5–1%. Кость укрепляется там, где на неё давит нагрузка, а хрящ суставов питается за счёт движения. Поэтому главное лекарство здесь — тяжёлое и регулярное движение.",
+  check:"Если были переломы от небольшой травмы или в семье есть остеопороз, сделай денситометрию (DXA) и сдай 25(OH)D. Если суставы болят с отёком, а утренняя скованность длится дольше 30 минут, иди к ревматологу.",
+  causes:["Малоподвижность","Дефицит D3 и кальция","Мало белка","Курение и алкоголь","Жёсткие диеты и низкий вес","Долгий приём гормонов (преднизолон)","Лишний вес — для коленей"],
+  plan:[["Неделя 1","Сдай 25(OH)D. Посчитай, сколько кальция и белка ты получаешь из еды."],["Неделя 2","2 силовые тренировки на всё тело с упором на ноги и спину."],["Неделя 3","Добавь 20–50 прыжков в день или трусцу, если суставы позволяют."],["Неделя 4","Равновесие: стой на одной ноге по 30 секунд, попробуй тайцзи."]],
+  items:[
+   ["train","Силовые с серьёзным весом","Кость укрепляется там, где на неё давят. Тяжёлые упражнения 2–3 раза в неделю повышали плотность костей даже у женщин с низкой плотностью в исследовании LIFTMOR.","A","t:Силовые"],
+   ["train","Прыжки и ударная нагрузка","20–50 прыжков в день или трусца дают костям ног и таза сигнал укрепляться. Плавание и велосипед такого сигнала почти не дают.","B","t:Встряхивание и махи руками"],
+   ["food","Кальций из еды, около 1000 мг","Молочка, твёрдый сыр, сардины с костями, кунжут, капуста. Из еды он безопаснее, чем из таблеток.","A"],
+   ["food","Белок 1,2–1,6 г на кг","Кость наполовину по объёму состоит из белка (коллагена). Если белка мало, кость теряется быстрее, а переломы заживают хуже.","B"],
+   ["train","Равновесие и тайцзи","Большинство переломов у пожилых — от падений. Тренировка равновесия снижает число падений на 20–40%.","A","t:Тайцзи"],
+   ["life","Нормальный вес для коленей","При ходьбе каждый лишний килограмм даёт на колено нагрузку около 4 кг. Похудение на 10% заметно уменьшает боль при артрозе.","A"],
+   ["life","Не курить и меньше алкоголя","Курение и больше двух порций алкоголя в день заметно повышают риск переломов.","A"],
+   ["train","Мобильность для суставов","Хрящ питается при движении: ежедневная подвижность уменьшает скованность.","B","t:Мобильность"],
+   ["supp","Витамин D3","При дефиците D3 вместе с кальцием снижает риск переломов у пожилых.","A","n:D3"],
+   ["supp","Кальций","Только если из еды получаешь меньше 700 мг в день.","B","n:Ca"],
+   ["supp","Омега-3","Немного уменьшает боль в суставах при артрите.","B","n:O3"],
+   ["supp","Куркумин","Уменьшает боль при артрозе, местами сравнимо со слабыми обезболивающими.","B","n:Cur"],
+   ["supp","Сывороточный протеин","Если не добираешь белок едой.","B","n:Prot"],
+   ["supp","Витамин K2","Помогает встраивать кальций в кость, данные смешанные.","C","n:K2"],
+   ["supp","Магний","Нужен для активации витамина D, около 60% магния тела хранится в костях.","C","n:Mg"],
+   ["supp","Креатин","Вместе с силовыми у пожилых немного улучшает плотность костей и силу.","C","n:Cre"]],
+  missing:[["Коллаген (пептиды)","10 г в день в небольших исследованиях немного уменьшали боль в суставах у спортсменов. Данные пока слабые."],["Глюкозамин и хондроитин","В больших исследованиях почти не отличаются от плацебо, хотя некоторым помогают."]]});
+Object.entries(PX).forEach(([k,v])=>Object.assign(PROB.find(p=>p.id===k),v));
 const MISS2N={"Экстракт выдержанного чеснока":["Gar","B"],"Свекольный сок (нитраты)":["Beet","B"],"Чай из гибискуса":["Hib","C"],"Мелатонин 0,5–1 мг":["Mel","B"],"Родиола розовая":["Rho","C"],"Шафран (экстракт 30 мг)":["Saf","B"],"Бакопа монье":["Bac","B"],"Бета-аланин":["BA","A"],"Бикарбонат натрия":["Bic","B"],"Протеин (сывороточный)":["Prot","A"],"Псиллиум":["Psy","B"],"Пробиотики":["Pro","B"]};
 PROB.forEach(p=>{p.missing=p.missing.filter(([t,txt])=>{const m=MISS2N[t];if(!m)return true;
   const item=["supp",byId[m[0]].name,txt,m[1],"n:"+m[0]];
@@ -1355,19 +1528,25 @@ PROB.forEach(p=>{p.missing=p.missing.filter(([t,txt])=>{const m=MISS2N[t];if(!m)
   at<0?p.items.push(item):p.items.splice(at,0,item);return false})});
 let probSel="pressure",probType="all";
 const PG=[["life","Образ жизни и питание",["life","food","med"]],["train","Тренировки",["train"]],["supp","Добавки",["supp"]]];
-function probItem(x,i,big){const [t,title,txt,ev,ref]=x;
-  return `<li class="pitem${big?" lead3":""}"><span class="rk${i<3?" top":""}">${i+1}</span><div class="sc">${big||t==="food"||t==="med"?`<span class="ptype" style="color:var(--pt-${t})">${PT[t]}</span>`:""}<b>${title}</b><span class="t">${txt}</span>${ref?`<button class="go" data-ref="${ref}">${ref[0]==="n"?"Открыть на карте →":"К тренировке →"}</button>`:""}</div><span class="ev">${ev}</span></li>`}
+function probItem(x,i,lead){const [t,title,txt,ev,ref]=x;
+  return `<li class="pitem${lead?" lead3":""}"><span class="rk${i<3?" top":""}">${i+1}</span><div class="sc">${lead||t==="food"||t==="med"?`<span class="ptype" style="color:var(--pt-${t})">${PT[t]}</span>`:""}<b>${title}</b><span class="t">${txt}</span>${ref?`<button class="go" data-ref="${ref}">${ref[0]==="n"?"Открыть на карте →":"К тренировке →"}</button>`:""}</div><span class="ev">${ev}</span></li>`}
 function renderProb(){
   document.getElementById("plist").innerHTML=PROB.map(p=>`<button class="pbtn" data-pr="${p.id}" aria-pressed="${p.id===probSel}">${p.t}<span>${p.items.length}</span></button>`).join("");
   const p=PROB.find(x=>x.id===probSel),idx=p.items.map((x,i)=>({x,i}));
-  document.getElementById("pbody").innerHTML=`<div><h2 class="big">${p.t}</h2><p class="lead">${p.intro}</p></div>
+  const body=document.getElementById("pbody");
+  body.innerHTML=`<div><h2 class="big">${p.t}</h2><p class="lead">${p.intro}</p></div>
+    <div class="pinfo">
+      ${p.causes?`<section class="pcard"><h4>Почему так бывает</h4><ul class="causes">${p.causes.map(c=>`<li>${c}</li>`).join("")}</ul></section>`:""}
+      <section class="pcard check"><h4>Сначала проверь</h4><p>${p.check}</p></section>
+    </div>
     <section class="top3"><h3>Главное — начни с этого</h3><ol>${idx.slice(0,3).map(o=>probItem(o.x,o.i,true)).join("")}</ol></section>
-    <div class="first"><span class="lbl">Сначала проверь</span><p>${p.check}</p></div>
     ${p.nuance?`<div class="box nu"><h3>${p.nuance.t}</h3><ul>${p.nuance.rows.map(([a,b],i)=>`<li${i===p.nuance.rows.length-1?' class="alarm"':""}><b>${a}</b><span>${b}</span></li>`).join("")}</ul></div>`:""}
-    <div><h3 style="margin-bottom:4px">Все меры по группам</h3><p class="kind" style="margin-bottom:12px">Номер — место по пользе среди всех мер.</p>
-    <div class="groups">${PG.map(([k,name,types])=>{const its=idx.filter(o=>types.includes(o.x[0]));if(!its.length)return"";
-      return `<section class="grp" style="--gc:var(--pt-${k})"><h3><span class="gdot" style="background:var(--pt-${k})"></span>${name}<span class="cnt">${its.length}</span></h3><ol>${its.map(o=>probItem(o.x,o.i)).join("")}</ol></section>`}).join("")}</div></div>
+    ${p.plan?`<section class="pplan"><h3>План на первый месяц</h3><ol>${p.plan.map(([w,t])=>`<li><span class="when">${w}</span><p>${t}</p></li>`).join("")}</ol></section>`:""}
+    <div class="groups"><div><h3>Все меры по группам</h3><p class="kind">Номер — место по пользе среди всех мер этой проблемы.</p></div>
+    ${PG.map(([k,name,types])=>{const its=idx.filter(o=>types.includes(o.x[0]));if(!its.length)return"";
+      return `<section class="grp" style="--gc:var(--pt-${k})"><h3><span class="gdot" style="background:var(--pt-${k})"></span>${name}<span class="cnt">${its.length}</span></h3><ol>${its.map(o=>probItem(o.x,o.i)).join("")}</ol></section>`}).join("")}</div>
     ${p.missing.length?`<div class="box miss"><h3>Чего пока нет на карте</h3><ul>${p.missing.map(([a,b])=>`<li><b>${a}</b><span>${b}</span></li>`).join("")}</ul></div>`:""}`;
+  decorate(body);
 }
 document.getElementById("plist").addEventListener("click",ev=>{const b=ev.target.closest("[data-pr]");if(!b)return;probSel=b.dataset.pr;probType="all";renderProb();
   if(matchMedia("(max-width:860px)").matches)document.getElementById("pbody").scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
