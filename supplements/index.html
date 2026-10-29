@@ -12,14 +12,15 @@
 :root{
   color-scheme:dark;
   --bg:#050506; --panel:#0D0E11; --raise:#15171B; --ink:#F3F2EE; --muted:#8C8F98; --faint:#2A2D33;
-  --syn:#E9E7E0; --good:#46E08A; --anti:#FF3D57; --warn:#FFB224;
+  --syn:#E9E7E0; --good:#46E08A;
+  --pt-life:#25E0D0; --pt-food:#FFE04A; --pt-train:#FF4F9A; --pt-supp:#B58CFF; --pt-med:#46E08A; --anti:#FF3D57; --warn:#FFB224;
   --g-long:#B58CFF; --g-infl:#FF8A3D; --g-sleep:#4D7CFF; --g-energy:#FFE04A;
   --g-brain:#25E0D0; --g-heart:#FF4F9A; --g-bones:#E6DCC4; --g-immune:#8FE04A;
   --f-body:"Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
-.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 56px;display:grid;gap:24px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 56px;display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
 h1{font-weight:800;font-size:clamp(30px,5vw,52px);line-height:1;margin:0;letter-spacing:-.035em}
 h1 em{font-style:normal;background:linear-gradient(90deg,var(--g-long),var(--g-heart) 45%,var(--g-infl));-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{margin:10px 0 0;color:var(--muted);max-width:62ch}
@@ -36,7 +37,7 @@ button{font:inherit}
 .tab{all:unset;cursor:pointer;font-weight:500;padding:8px 16px;border-radius:7px;color:var(--muted);white-space:nowrap}
 .tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
 .tab:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.view{display:grid;gap:22px}
+.view{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
 
 .filters{display:grid;gap:10px}
 .frow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -192,6 +193,30 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .sortb:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .sortb i{font-style:normal;font-size:10px;margin-left:3px}
 .sortlbl{display:none}
+.prob{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;align-items:start}
+.plist{display:grid;gap:4px;position:sticky;top:16px}
+.pbtn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;color:var(--muted);font-weight:500}
+.pbtn span{font:500 12px var(--f-mono);opacity:.7}
+.pbtn:hover{color:var(--ink);background:var(--panel)}
+.pbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.pbtn:focus-visible,.go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@media (max-width:860px){.prob{grid-template-columns:minmax(0,1fr);gap:18px}.plist{position:static;display:flex;flex-wrap:wrap;gap:6px}.pbtn{border:1px solid var(--faint);border-radius:999px;padding:6px 12px;font-size:13.5px}.pbtn span{display:none}}
+.pbody{display:grid;gap:18px;min-width:0}
+.steps{list-style:none;margin:0;padding:0;display:grid}
+.steps li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;padding:14px 0;border-top:1px solid var(--faint)}
+.num{font:800 20px/1.15 var(--f-body);color:#3A3D45}
+.num.top{color:var(--ink)}
+.sc{display:grid;gap:3px;min-width:0}
+.ptype{font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:500}
+.sc b{font-size:15.5px;font-weight:700}
+.sc .t{color:var(--muted);font-size:14px;max-width:70ch}
+.go{all:unset;cursor:pointer;justify-self:start;margin-top:5px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--muted);padding-bottom:1px}
+.go:hover{border-color:var(--ink)}
+.box.miss{border-style:dashed}
+.box.miss ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.miss li b{display:block}.miss li span{color:var(--muted);font-size:13.5px}
+.card.flash{animation:flash 1.8s ease}
+@keyframes flash{0%,45%{box-shadow:0 0 0 2px var(--ink)}100%{box-shadow:0 0 0 0 transparent}}
 .plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 @media (max-width:960px){.plan{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:540px){.plan{grid-template-columns:minmax(0,1fr)}}
@@ -239,6 +264,7 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Связи</button>
+    <button class="tab" id="tab-prob" role="tab" aria-selected="false" aria-controls="view-prob">Проблемы</button>
     <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan">Когда принимать</button>
     <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train">Тренировки</button>
   </div>
@@ -271,6 +297,11 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
       <div class="thead"><span class="sortlbl">Сортировка:</span><button class="sortb" data-sort="pair">Пара<i></i></button><button class="sortb" data-sort="type">Тип<i></i></button><span class="tcol">Что происходит</span><button class="sortb" data-sort="ev">Данные<i></i></button></div>
       <div class="table" id="table"></div>
     </div>
+  </section>
+
+  <!-- PROBLEMS -->
+  <section class="view" id="view-prob" role="tabpanel" aria-labelledby="tab-prob" hidden>
+    <div class="prob"><nav class="plist" id="plist" aria-label="Проблемы"></nav><div class="pbody" id="pbody"></div></div>
   </section>
 
   <!-- SCHEDULE -->
@@ -874,7 +905,7 @@ const NU=[
  ["После сауны и долгой тренировки восполни воду и соль, особенно летом.","B"]
 ];
 document.getElementById("train").innerHTML=`<div class="view">`+TR.map(gr=>`<section class="tgroup"><div><h2>${gr.h}</h2><p style="color:var(--muted);margin-top:4px;max-width:70ch">${gr.p}</p></div><div class="cards">${gr.items.map(it=>`
-  <article class="card" style="--stripe:linear-gradient(90deg,${it.g.map(k=>`var(${G[k].c})`).join(",")}${it.g.length===1?`,var(${G[it.g[0]].c})`:""})">
+  <article class="card" data-name="${it.n}" style="--stripe:linear-gradient(90deg,${it.g.map(k=>`var(${G[k].c})`).join(",")}${it.g.length===1?`,var(${G[it.g[0]].c})`:""})">
     <div class="top"><div><h3>${it.n}</h3><span class="orig">${it.o}</span></div><span class="ev">${it.ev}</span></div>
     <span class="meta">${it.m}</span>
     ${tags(it.g)}
@@ -884,14 +915,176 @@ document.getElementById("train").innerHTML=`<div class="view">`+TR.map(gr=>`<sec
   </article>`).join("")}</div></section>`).join("")+
   `<section class="box"><h2>Тренировки и добавки</h2><ul class="nuance">${NU.map(([t,e])=>`<li><span>${t}</span><span class="ev">${e}</span></li>`).join("")}</ul></section></div>`;
 
+/* ---------- problems ---------- */
+// items: [type, title, text, evidence, ref]  type: life|food|train|supp|med ; ref: "n:ID" (graph) or "t:Name" (training card)
+const PT={life:"Образ жизни",food:"Питание",train:"Тренировки",supp:"Добавки",med:"Медицина"};
+const PROB=[
+ {id:"pressure",t:"Высокое давление",
+  intro:"Давление выше 130/80 повышает риск инсульта и инфаркта. Образ жизни снижает его примерно как одна таблетка. Добавки дают меньше всего.",
+  check:"Измеряй дома утром и вечером неделю. Если стабильно выше 140/90, нужен врач: добавки таблетки не заменяют.",
+  items:[
+   ["life","Сбросить лишний вес","Каждый сброшенный килограмм снижает давление примерно на 1 мм рт. ст.","A"],
+   ["food","Меньше соли, больше калия","Соль меньше 5 г в день снижает верхнее давление на 4–5 мм. Калий из овощей, фруктов, бобовых и картофеля даёт ещё примерно столько же.","A"],
+   ["food","Питание DASH","Овощи, фрукты, цельные злаки, молочка, мало красного мяса и сладкого. У людей с гипертонией снижает давление примерно на 11 мм.","A"],
+   ["train","Изометрические упражнения","Стульчик у стены или сжатие кистевого эспандера: 4 подхода по 2 минуты, 3 раза в неделю. В большом метаанализе 2023 года снижали давление сильнее других видов нагрузки, примерно на 8/4 мм.","A"],
+   ["train","Кардио","150 минут в неделю снижают давление на 5–8 мм.","A","t:Кардио в зоне 2"],
+   ["life","Меньше алкоголя","Если пьёшь больше двух порций в день, сокращение снижает давление примерно на 5 мм.","A"],
+   ["life","Сон и проверка на апноэ","Недосып и храп с остановками дыхания повышают давление. Если храпишь и днём сонлив, проверься.","B"],
+   ["supp","Омега-3","2–3 г EPA+DHA в день снижают давление на 2–4 мм.","B","n:O3"],
+   ["supp","Магний","Снижает на 2–4 мм, сильнее при дефиците.","B","n:Mg"],
+   ["supp","Таурин","В небольших исследованиях снижал давление на 3–4 мм.","C","n:Tau"]],
+  missing:[["Экстракт выдержанного чеснока","В метаанализах снижает верхнее давление примерно на 8 мм у людей с гипертонией."],["Свекольный сок (нитраты)","Снижает давление на 4–5 мм на несколько часов после приёма."],["Чай из гибискуса","Небольшие исследования показывают снижение на 5–7 мм."]]},
+ {id:"sleep",t:"Плохой сон",
+  intro:"Во сне восстанавливаются мозг, гормоны и мышцы. Почти всегда проблема в режиме, свете и кофеине, а не в нехватке таблеток.",
+  check:"Если храпишь и днём хочется спать, проверься на апноэ. Если бессонница дольше трёх месяцев, лучше всего работает когнитивно-поведенческая терапия бессонницы (КПТ-И), она эффективнее снотворных.",
+  items:[
+   ["life","Один режим каждый день","Ложиться и вставать в одно время, даже в выходные. Это главный сигнал для внутренних часов.","A"],
+   ["train","Утренний свет","10–20 минут на улице после подъёма помогают раньше засыпать вечером.","B","t:Утренний свет"],
+   ["life","Кофеин только до 14:00","Кофеин действует 5–6 часов. Чашка в 16:00 укорачивает глубокий сон, даже если уснуть удаётся.","A"],
+   ["life","Прохладная тёмная спальня","18–20 °C, плотные шторы, без экранов за час до сна.","B"],
+   ["life","Без алкоголя вечером","Помогает уснуть, но разрушает вторую половину ночи и фазу быстрого сна.","A"],
+   ["train","Тренировки днём","Регулярная нагрузка углубляет сон. Тяжёлые интервалы лучше заканчивать минимум за 3 часа до сна.","B","t:Кардио в зоне 2"],
+   ["supp","Магний глицинат","200–400 мг вечером, особенно при стрессе.","B","n:Mg"],
+   ["supp","Глицин","3 г перед сном: быстрее засыпание и бодрее утро.","B","n:Gly"],
+   ["supp","Ашваганда","Если уснуть не даёт стресс.","B","n:Ash"],
+   ["supp","L-теанин","Расслабляет без сонливости.","C","n:LT"],
+   ["supp","Апигенин","Слабее остальных, если первых мало.","C","n:Api"]],
+  missing:[["Мелатонин 0,5–1 мг","Сдвигает внутренние часы: хорошо работает при джетлаге и сменном графике. При обычной бессоннице эффект скромный. Маленькие дозы работают не хуже больших."]]},
+ {id:"stress",t:"Стресс и тревожность",
+  intro:"Стресс — нормальная реакция организма. Проблема начинается, когда он не выключается: плохой сон, напряжение в теле, мысли по кругу.",
+  check:"Если тревога несколько недель мешает работать и спать или бывают панические атаки, лучше всего работает психотерапия (КПТ). Это самый изученный метод.",
+  items:[
+   ["train","Циклический вздох","5 минут в день снижали тревожность сильнее, чем медитация.","B","t:Циклический вздох"],
+   ["train","Кардио","Регулярные аэробные нагрузки заметно снижают тревожность и симптомы депрессии в метаанализах.","A","t:Кардио в зоне 2"],
+   ["life","Сон","Одна бессонная ночь повышает тревожность почти на треть.","B"],
+   ["life","Природа и живое общение","Прогулки на природе и встречи с близкими снижают кортизол и ощущение угрозы.","B"],
+   ["life","Меньше кофеина","Больше 400 мг кофеина в день (около четырёх чашек) у многих усиливает тревогу.","B"],
+   ["train","Тайцзи или Ба Дуань Цзинь","Медленные движения с дыханием снижают тревожность и улучшают настроение.","B","t:Ба Дуань Цзинь"],
+   ["supp","Ашваганда","Снижает стресс и кортизол на 15–30%.","B","n:Ash"],
+   ["supp","L-теанин","200 мг снижают ощущение стресса в течение часа.","C","n:LT"],
+   ["supp","Магний","Помогает, если его не хватает: стресс сам вымывает магний.","C","n:Mg"],
+   ["supp","Омега-3","Небольшое снижение тревожности при дозах от 2 г.","C","n:O3"]],
+  missing:[["Родиола розовая","Адаптоген. Небольшие исследования показывают меньше усталости и стресса при нагрузках."],["Шафран (экстракт 30 мг)","В метаанализах улучшает настроение и снижает тревожность."]]},
+ {id:"irrit",t:"Раздражительность",
+  intro:"Чаще всего у неё простые причины: недосып, голод, перебор кофе, алкоголь накануне, накопленный стресс. Начни с них.",
+  check:"Если раздражительность держится неделями вместе с плохим настроением или потерей интереса, это может быть депрессия. Ещё проверь ТТГ, ферритин и витамин D.",
+  items:[
+   ["life","Высыпаться","После недосыпа мозг сильнее реагирует на раздражители и хуже себя тормозит.","A"],
+   ["food","Не голодать подолгу","Когда падает сахар, люди становятся раздражительнее. Белок и клетчатка в каждом приёме пищи держат сахар ровнее.","B"],
+   ["life","Меньше кофеина и алкоголя","Перебор кофеина даёт нервозность, а алкоголь портит сон и настроение на следующий день.","B"],
+   ["train","Регулярные тренировки","Снимают напряжение и улучшают настроение уже через несколько недель.","B","t:Силовые"],
+   ["train","Циклический вздох","Быстрый способ сбросить напряжение за 1–5 минут.","B","t:Циклический вздох"],
+   ["supp","Магний","Помогает, если есть дефицит.","C","n:Mg"],
+   ["supp","Омега-3","Есть данные, что немного снижает агрессивность и импульсивность.","C","n:O3"],
+   ["supp","Витамин D3","Помогает настроению только при дефиците.","C","n:D3"],
+   ["supp","L-теанин","Сглаживает нервозность, особенно от кофе.","C","n:LT"]],
+  missing:[]},
+ {id:"focus",t:"Фокус и концентрация",
+  intro:"Внимание зависит от сна, уровня сахара и того, как часто ты переключаешься. Добавки дают немного, режим работы — много.",
+  check:"Если проблемы с вниманием были всегда, ещё с детства, и мешают работе, стоит проверить СДВГ у специалиста.",
+  items:[
+   ["life","Сон 7–9 часов","После недосыпа внимание падает примерно как от лёгкого опьянения.","A"],
+   ["life","Работа блоками без телефона","45–90 минут на одну задачу, уведомления выключены. После каждого переключения фокус восстанавливается несколько минут.","B"],
+   ["train","Короткая нагрузка","10–20 минут движения улучшают внимание на 1–2 часа после.","B","t:Ба Дуань Цзинь"],
+   ["supp","Кофе с L-теанином","Самая рабочая связка для фокуса: бодрость без нервозности.","B","n:LT"],
+   ["supp","Креатин","Помогает мозгу при недосыпе и стрессе.","B","n:Cre"],
+   ["supp","B12","При дефиците восполнение возвращает ясность головы.","B","n:B12"],
+   ["supp","Омега-3","Если рыбу ешь редко.","C","n:O3"]],
+  missing:[["Бакопа монье","Улучшает память после 8–12 недель приёма. Быстрого эффекта не даёт."],["Родиола розовая","Помогает при умственной усталости во время стресса."]]},
+ {id:"energy",t:"Энергия и усталость",
+  intro:"Постоянная усталость — чаще всего недосып, мало движения, нехватка чего-то или скрытая болезнь. Кофе и энергетики это маскируют, но не лечат.",
+  check:"Сдай общий анализ крови, ферритин, B12, 25(OH)D, ТТГ и глюкозу. Это закрывает большинство частых причин.",
+  items:[
+   ["life","Сон","Без него ничего ниже не сработает.","A"],
+   ["train","Кардио в зоне 2","Больше митохондрий — больше энергии. Через 4–6 недель усталость заметно меньше.","A","t:Кардио в зоне 2"],
+   ["train","Утренний свет","Будит и выставляет внутренние часы на день.","B","t:Утренний свет"],
+   ["train","Прогулка после еды","Убирает сонливость после обеда за счёт ровного сахара.","B","t:Прогулка после еды"],
+   ["food","Белок и клетчатка в каждом приёме пищи","Без скачков сахара нет и провалов энергии после еды.","B"],
+   ["supp","Железо при низком ферритине","Одна из самых частых причин усталости, особенно у женщин и тех, кто много бегает. Только по анализу.","A","n:Fe"],
+   ["supp","B12 при дефиците","Слабость и одышка проходят после восполнения.","A","n:B12"],
+   ["supp","D3 при дефиците","Низкий уровень связан с усталостью и мышечной слабостью.","B","n:D3"],
+   ["supp","Креатин","Немного снижает умственную усталость.","C","n:Cre"]],
+  missing:[["Родиола розовая","В небольших исследованиях снижает усталость при стрессе и нагрузках."]]},
+ {id:"endur",t:"Выносливость",
+  intro:"Выносливость растёт от объёма лёгкой работы и небольшого количества интервалов. Добавки дают проценты, тренировки — десятки процентов.",
+  check:"Если одышка и усталость появились недавно без понятной причины, проверь ферритин и гемоглобин и покажись врачу.",
+  items:[
+   ["train","Кардио в зоне 2","Основа: около 80% объёма в лёгком темпе. Растут митохондрии и капилляры.","A","t:Кардио в зоне 2"],
+   ["train","Интервалы 4×4","Быстрее всего поднимают VO2max.","A","t:Интервалы 4×4"],
+   ["train","Силовые","Сильные ноги и корпус экономят энергию на каждом шаге.","B","t:Силовые"],
+   ["life","Сон и восстановление","Форма растёт в отдыхе, а не на тренировке.","A"],
+   ["supp","Кофеин 3 мг на кг","За 30–60 минут до нагрузки улучшает выносливость на 2–4%.","A","n:Cof"],
+   ["supp","Железо при дефиците","Низкий ферритин — частая скрытая причина плохих результатов у бегунов.","A","n:Fe"],
+   ["supp","Креатин","Помогает в интервалах и спринтах, для длинного кардио почти не нужен.","B","n:Cre"]],
+  missing:[["Свекольный сок (нитраты)","За 2–3 часа до нагрузки улучшает выносливость на 1–3%, сильнее у любителей."],["Бета-аланин","3–6 г в день улучшают результат в усилиях на 1–4 минуты."],["Бикарбонат натрия","Помогает в интенсивных отрезках, но часто расстраивает желудок."]]},
+ {id:"strength",t:"Сила и мышцы",
+  intro:"Мышцы растут от постепенного роста нагрузки, белка и сна. Без этого добавки не сработают.",
+  check:"Если пропали либидо и утренняя эрекция или растёт жир при нормальном питании, проверь тестостерон, ТТГ и витамин D.",
+  items:[
+   ["train","Силовые 2–3 раза в неделю","Подходы близко к отказу, вес растёт постепенно.","A","t:Силовые"],
+   ["food","Белок 1,6–2,2 г на кг веса","Раздели на 3–5 приёмов по 25–40 г.","A"],
+   ["life","Сон 7–9 часов","При недосыпе мышцы растут хуже, а на диете их теряется больше.","B"],
+   ["supp","Креатин","Прибавляет силу и мышцы вместе с тренировками.","A","n:Cre"],
+   ["supp","D3 при дефиците","Нужен для работы мышц, при дефиците сила ниже.","C","n:D3"],
+   ["train","Холод не сразу после силовой","Ледяная ванна сразу после тренировки уменьшает прирост мышц.","B","t:Холод"]],
+  missing:[["Протеин (сывороточный)","Не волшебство, просто удобный белок, если не добираешь его едой."]]},
+ {id:"weight",t:"Снижение веса",
+  intro:"Вес снижается при дефиците калорий. Всё остальное — инструменты, которые делают дефицит проще и сохраняют мышцы.",
+  check:"Если индекс массы тела выше 30 или вес уже мешает здоровью, обсуди с врачом лекарства GLP-1 (семаглутид, тирзепатид). В исследованиях они снижали вес на 15–20%.",
+  items:[
+   ["food","Дефицит 300–500 ккал в день","Около 0,5–1% веса в неделю без большой потери мышц.","A"],
+   ["food","Белок 1,6–2 г на кг веса","Насыщает сильнее всего и сохраняет мышцы на диете.","A"],
+   ["food","Меньше ультраобработанной еды","В контролируемом исследовании люди на такой еде съедали примерно на 500 ккал в день больше и набирали вес.","B"],
+   ["train","Силовые","Сохраняют мышцы, иначе часть сброшенного веса уходит из них.","A","t:Силовые"],
+   ["life","8–10 тысяч шагов","Самый простой способ тратить больше, не разгоняя аппетит.","B"],
+   ["life","Сон","После недосыпа сильнее голод и тяга к сладкому.","A"],
+   ["supp","Жиросжигатели, L-карнитин, кето-капсулы","Почти не работают. Кофеин и экстракт зелёного чая дают максимум 1–2 кг за несколько месяцев.","C"]],
+  missing:[["Псиллиум","Клетчатка в порошке: дольше сытость, ровнее сахар, немного снижает холестерин."]]},
+ {id:"colds",t:"Частые простуды",
+  intro:"Иммунитет держится в основном на сне, движении и отсутствии дефицитов. Добавки помогают, когда чего-то не хватает.",
+  check:"Если болеешь больше 4–6 раз в год или подолгу, проверь 25(OH)D, ферритин, общий анализ крови и покажись врачу.",
+  items:[
+   ["life","Сон 7 часов и больше","В исследовании люди, спавшие меньше 6 часов, заболевали после контакта с вирусом в 4 раза чаще.","B"],
+   ["train","Умеренные регулярные нагрузки","Меньше дней с простудой. Изнуряющие нагрузки без отдыха, наоборот, повышают риск.","B","t:Кардио в зоне 2"],
+   ["life","Мыть руки и проветривать","Простые меры, которые реально снижают число заражений.","A"],
+   ["med","Прививка от гриппа","Каждый год, особенно если много контактов с людьми.","A"],
+   ["supp","Витамин D3","При дефиците снижает риск ОРВИ.","A","n:D3"],
+   ["supp","Пастилки с цинком","Если начать в первые сутки, простуда проходит примерно на треть быстрее.","B","n:Zn"],
+   ["supp","Витамин C","Простуда немного короче. При тяжёлых нагрузках риск заболеть вдвое ниже.","B","n:C"]],
+  missing:[["Пробиотики","В метаанализах немного снижают число простуд, эффект зависит от штамма."]]}
+];
+let probSel="pressure",probType="all";
+function renderProb(){
+  document.getElementById("plist").innerHTML=PROB.map(p=>`<button class="pbtn" data-pr="${p.id}" aria-pressed="${p.id===probSel}">${p.t}<span>${p.items.length}</span></button>`).join("");
+  const p=PROB.find(x=>x.id===probSel),types=[...new Set(p.items.map(x=>x[0]))];
+  if(probType!=="all"&&!types.includes(probType))probType="all";
+  const list=p.items.map((x,i)=>({x,i})).filter(o=>probType==="all"||o.x[0]===probType);
+  document.getElementById("pbody").innerHTML=`<div><h2 class="big">${p.t}</h2><p class="lead">${p.intro}</p></div>
+    <div class="first"><span class="lbl">Сначала проверь</span><p>${p.check}</p></div>
+    <div class="frow" role="group" aria-label="Тип меры"><button class="chip sm" data-pt="all" aria-pressed="${probType==="all"}">Все</button>${types.map(t=>`<button class="chip sm" data-pt="${t}" aria-pressed="${probType===t}"><span class="gdot" style="background:var(--pt-${t})"></span>${PT[t]}</button>`).join("")}</div>
+    <div><h3 style="margin-bottom:8px">Что делать, от самого полезного</h3>
+    <ol class="steps">${list.map(({x:[t,title,txt,ev,ref],i})=>`<li><span class="num${i<3?" top":""}">${i+1}</span><div class="sc"><span class="ptype" style="color:var(--pt-${t})">${PT[t]}</span><b>${title}</b><span class="t">${txt}</span>${ref?`<button class="go" data-ref="${ref}">${ref[0]==="n"?"Открыть на карте →":"К тренировке →"}</button>`:""}</div><span class="ev">${ev}</span></li>`).join("")}</ol></div>
+    ${p.missing.length?`<div class="box miss"><h3>Чего пока нет на карте</h3><ul>${p.missing.map(([a,b])=>`<li><b>${a}</b><span>${b}</span></li>`).join("")}</ul></div>`:""}`;
+}
+document.getElementById("plist").addEventListener("click",ev=>{const b=ev.target.closest("[data-pr]");if(!b)return;probSel=b.dataset.pr;probType="all";renderProb();
+  if(matchMedia("(max-width:860px)").matches)document.getElementById("pbody").scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
+document.getElementById("pbody").addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-pt]");if(t){probType=t.dataset.pt;renderProb();return}
+  const g=ev.target.closest("[data-ref]");if(!g)return;const r=g.dataset.ref,key=r.slice(2);
+  if(r[0]==="n"){showTab("graph");select({type:"node",id:key});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})}
+  else{showTab("train");const el=document.querySelector(`.card[data-name="${key}"]`);if(el){el.scrollIntoView({behavior:reduce?"auto":"smooth",block:"center"});el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash")}}
+});
+renderProb();
+
 /* ---------- tabs ---------- */
 function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow===W&&oh===H)return;
   N.forEach(n=>{n.x=n.x*W/ow;n.y=n.y*H/oh});buildNodes();applyView();render();heat(.2)}
 let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
-const TABS=["graph","plan","train"];
+const TABS=["graph","prob","plan","train"];
 function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
 TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>showTab(t)));
 if(location.hash==="#plan")showTab("plan");
+if(location.hash==="#problems")showTab("prob");
 if(location.hash==="#train")showTab("train");
 
 const qIn=document.getElementById("q"),qCount=document.getElementById("qcount");
