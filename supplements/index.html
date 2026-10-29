@@ -142,6 +142,35 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .schedhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
 .chip.sm{padding:5px 11px;font-size:13px}
 .empty{grid-column:1/-1;color:var(--muted);background:var(--panel);border:1px dashed var(--faint);border-radius:14px;padding:18px}
+.search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;max-width:440px}
+.search input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--faint);border-radius:999px;color:var(--ink);padding:8px 16px;font:inherit;font-size:14px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{outline:none;border-color:var(--ink)}
+.node.gone{opacity:.05;pointer-events:none}
+.edge.gone{opacity:0}
+.node.match .nm{fill:var(--ink);font-weight:700}
+.mini{color:var(--ink)}
+.tl{display:grid;gap:10px}
+.tline{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:16px;align-items:start}
+.tl-when{display:grid;gap:3px}
+.tl-when .when{font:700 11px var(--f-mono);color:var(--muted);letter-spacing:.06em}
+.tl-when p{font-size:13px;color:var(--muted)}
+.tl-items{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.titem{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:30px minmax(0,1fr);gap:9px;align-items:center;padding:7px 14px 7px 7px;background:var(--raise);border-radius:12px;max-width:100%}
+.titem.opt{background:transparent;border:1px dashed var(--faint)}
+.titem b{font-size:14px;font-weight:500}
+.titem .t{display:block;font-size:12px;color:var(--muted);line-height:1.3}
+.titem:hover{box-shadow:inset 0 0 0 1px var(--muted)}
+@media (max-width:640px){.tline{grid-template-columns:minmax(0,1fr);gap:10px}}
+.pchips{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:3px 12px 3px 3px;border-radius:999px;border:1px solid var(--faint);font-size:13.5px}
+.pchip .mini{width:26px;height:26px;font-size:8.5px}
+.pchip:hover{border-color:var(--muted)}
+.pchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pchip:focus-visible,.titem:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.clash li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--faint);list-style:none}
+.clash ul{margin:0;padding:0}
+.clash .t{color:var(--muted);font-size:13.5px}
 .plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 @media (max-width:960px){.plan{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:540px){.plan{grid-template-columns:minmax(0,1fr)}}
@@ -205,6 +234,10 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
         <button class="chip rel" id="r-warn" data-f="warn" aria-pressed="false"><span class="ln warn"></span>Зависит от дозы</button>
         <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
       </div>
+      <div class="frow">
+        <label class="flabel" for="q">Поиск</label>
+        <div class="search"><input id="q" type="search" placeholder="Начни вводить: креатин, цинк, zinc…" autocomplete="off" spellcheck="false"><span id="qcount" class="kind"></span></div>
+      </div>
     </div>
 
     <div class="main">
@@ -233,9 +266,9 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
     </div>
     <div class="stacks" id="stacks"></div>
 
-    <div class="box skip">
-      <h2>Что обычно можно не пить</h2>
-      <ul id="skip"></ul>
+    <div class="box">
+      <div class="shead"><div><h2>Собери свой набор</h2><p class="who">Нажми на любую добавку, чтобы добавить её или убрать. Выбранные наборы выше уже отмечены.</p></div><button class="chip sm" id="resetSet">Сбросить</button></div>
+      <div class="pchips" id="pchips"></div>
     </div>
 
     <div class="schedhead">
@@ -245,7 +278,13 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
         <button class="chip sm" id="sched-all" data-m="all" aria-pressed="false">Все добавки</button>
       </div>
     </div>
-    <div class="plan" id="plan"></div>
+    <div class="tl" id="plan"></div>
+    <div class="box clash" id="clash" hidden><h2>Обрати внимание в твоём наборе</h2><ul id="clashList"></ul></div>
+
+    <div class="box skip">
+      <h2>Что обычно можно не пить</h2>
+      <ul id="skip"></ul>
+    </div>
     <div class="box">
       <h2>Что разносить по времени</h2>
       <ul>
@@ -272,11 +311,11 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 <script>
 const G={
  long:  {n:"Антиэйдж",c:"--g-long",note:"Ни одна добавка пока не доказала, что продлевает жизнь человеку. Почти все данные здесь получены на клетках и животных. Гораздо сильнее на продолжительность жизни влияют силовые, кардио и сон, смотри вкладку «Тренировки»."},
- infl:  {n:"Против воспаления",c:"--g-infl",note:"Омега-3 и куркумин снижают маркеры воспаления (СРБ, IL-6) в исследованиях. Эффект умеренный и сильнее заметен у тех, у кого воспаление повышено."},
+ infl:  {n:"Воспаление",c:"--g-infl",note:"Омега-3 и куркумин снижают маркеры воспаления (СРБ, IL-6) в исследованиях. Эффект умеренный и сильнее заметен у тех, у кого воспаление повышено."},
  sleep: {n:"Сон и стресс",c:"--g-sleep",note:"Лучшие данные у ашваганды, глицина и магния (особенно при его дефиците). Апигенин и L-теанин изучены слабее."},
  energy:{n:"Энергия",c:"--g-energy",note:"Добавки дают энергию в основном тогда, когда чего-то не хватает: железа, B12, D3, йода. При нормальных анализах эффекта обычно нет. Исключения: кофеин и креатин."},
  brain: {n:"Мозг и фокус",c:"--g-brain",note:"Самые убедительные данные у кофеина с L-теанином и у креатина (особенно при недосыпе и у тех, кто ест мало мяса). Омега-3 важны, если редко ешь рыбу."},
- heart: {n:"Сердце и сосуды",c:"--g-heart",note:"Омега-3 в дозе от 2 г снижает триглицериды. Q10 полезен при приёме статинов. Роль K2 для сосудов пока изучают."},
+ heart: {n:"Сердце",c:"--g-heart",note:"Омега-3 в дозе от 2 г снижает триглицериды. Q10 полезен при приёме статинов. Роль K2 для сосудов пока изучают."},
  bones: {n:"Кости и мышцы",c:"--g-bones",note:"Для костей работают кальций, D3 и K2 вместе. Для мышц креатин даёт эффект только вместе с силовыми тренировками."},
  immune:{n:"Иммунитет",c:"--g-immune",note:"D3 при дефиците снижает риск простуд. Цинк в виде пастилок сокращает простуду, если начать в первые сутки. Витамин C немного сокращает её длительность."}
 };
@@ -359,7 +398,12 @@ const byId=Object.fromEntries(N.map(n=>[n.id,n]));
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
-const state={filter:"all",hideC:false,goal:null,sel:null,hover:null};
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:""};
+const AL={D3:"vitamin d холекальциферол витамин д",K2:"mk-7 mk7 менахинон витамин к",A:"retinol ретинол бета-каротин",E:"tocopherol токоферол",C:"ascorbic аскорбиновая кислота",B1:"thiamine тиамин бенфотиамин",B6:"pyridoxine пиридоксин p5p",B9:"folate folic фолиевая метилфолат",B12:"cobalamin кобаламин метилкобаламин",Ca:"calcium",Mg:"magnesium глицинат цитрат",Zn:"zinc",Cu:"copper",Fe:"iron ферритин",Se:"selenium",I:"iodine",O3:"omega fish oil рыбий жир epa dha омега",Cur:"curcumin turmeric куркума",Pip:"piperine bioperine чёрный перец",Q10:"coq10 убихинон убихинол коэнзим",Cre:"creatine",Gly:"glycine",NAD:"nmn nr никотинамид рибозид",Api:"apigenin ромашка",NAC:"nac n-acetylcysteine ацетилцистеин глутатион",Tau:"taurine",LT:"l-theanine theanine теанин",Ash:"ashwagandha ksm-66",Cof:"coffee caffeine tea кофеин чай"};
+const norm=x=>x.toLowerCase().replace(/ё/g,"е");
+N.forEach(n=>{n.hay=norm([n.name,n.s,n.id,AL[n.id]||""].join(" "));n.words=n.hay.split(/[\s()+,.\-]+/).filter(Boolean)});
+function matches(){const q=norm(state.q.trim());if(!q)return null;
+  return new Set(N.filter(n=>n.words.some(w=>w.startsWith(q))||(q.length>=3&&n.hay.includes(q))).map(n=>n.id))}
 const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 let W=800,H=640,S=1,R=17,alpha=1,raf=null;
 
@@ -450,29 +494,35 @@ if(reduce){while(alpha>.004){tick(alpha);alpha*=.985}render()}else heat(alpha);
 
 let dragging=null;
 function pt(ev){const r=svg.getBoundingClientRect();return{x:(ev.clientX-r.left)*W/r.width,y:(ev.clientY-r.top)*H/r.height}}
-function startDrag(ev,n){ev.preventDefault();const p=pt(ev);dragging={n,sx:p.x,sy:p.y,moved:false};try{svg.setPointerCapture(ev.pointerId)}catch(_){}}
+function startDrag(ev,n){ev.preventDefault();const p=pt(ev);dragging={n,sx:p.x,sy:p.y,cx:ev.clientX,cy:ev.clientY,moved:false};try{svg.setPointerCapture(ev.pointerId)}catch(_){}}
 svg.addEventListener("pointermove",ev=>{if(!dragging)return;const p=pt(ev);
-  if(!dragging.moved&&Math.hypot(p.x-dragging.sx,p.y-dragging.sy)<5)return;
+  if(!dragging.moved&&Math.hypot(ev.clientX-dragging.cx,ev.clientY-dragging.cy)<8)return;
   dragging.moved=true;dragging.n.fx=p.x;dragging.n.fy=p.y;heat(.3)});
-function endDrag(){if(!dragging)return;const {n,moved}=dragging;n.fx=n.fy=null;dragging=null;if(!moved)select({type:"node",id:n.id});else heat(.15)}
+let lastNodeUp=0;
+function endDrag(){if(!dragging)return;const {n,moved}=dragging;n.fx=n.fy=null;dragging=null;lastNodeUp=performance.now();if(!moved)select({type:"node",id:n.id});else heat(.15)}
 svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",endDrag);
-svg.addEventListener("click",ev=>{if(ev.target===svg)select(null)});
+// pointer capture retargets the click after a node tap to the svg; ignore that one
+svg.addEventListener("click",ev=>{if(ev.target===svg&&performance.now()-lastNodeUp>400)select(null)});
 
 function select(s){state.sel=s;applyView();renderNote()}
 function focusSets(){
   const s=state.sel||(state.hover?{type:"node",id:state.hover}:null);
-  if(s&&s.type==="node"){const rn=new Set([s.id]),re=new Set();E.forEach(e=>{if(visible(e)&&(e.a===s.id||e.b===s.id)){re.add(e.i);rn.add(e.a);rn.add(e.b)}});return {rn,re,s}}
+  if(s&&s.type==="node"){const rn=new Set([s.id]),re=new Set();E.forEach(e=>{if(visible(e)&&(e.a===s.id||e.b===s.id)){re.add(e.i);rn.add(e.a);rn.add(e.b)}});return {rn,re,s,M:matches()}}
   if(s&&s.type==="edge"){const e=E[s.i];return {rn:new Set([e.a,e.b]),re:new Set([e.i]),s}}
+  const M=matches();
+  if(M){
+    if(M.size===1){const id=[...M][0],rn=new Set([id]),re=new Set();E.forEach(e=>{if(visible(e)&&(e.a===id||e.b===id)){re.add(e.i);rn.add(e.a);rn.add(e.b)}});return {rn,re,s:null,M,mode:"search"}}
+    const re=new Set();E.forEach(e=>{if(M.has(e.a)&&M.has(e.b))re.add(e.i)});return {rn:M,re,s:null,M,mode:"search"}}
   if(state.goal){const rn=new Set(N.filter(n=>n.g.includes(state.goal)).map(n=>n.id)),re=new Set();
     E.forEach(e=>{if(rn.has(e.a)&&rn.has(e.b))re.add(e.i)});return {rn,re,s:null}}
   return {rn:null,re:null,s:null};
 }
 function applyView(){
-  const {rn,re,s}=focusSets();
+  const {rn,re,s,M,mode}=focusSets(),srch=mode==="search";
   E.forEach(e=>{const v=visible(e)||(s&&s.type==="edge"&&s.i===e.i);
     e.line.classList.toggle("hide",!v);e.hit.classList.toggle("hide",!v);
-    e.line.classList.toggle("dim",!!re&&!re.has(e.i));e.line.classList.toggle("on",!!re&&re.has(e.i))});
-  N.forEach(n=>{n.g_el.classList.toggle("dim",!!rn&&!rn.has(n.id));
+    e.line.classList.toggle("dim",!!re&&!re.has(e.i)&&!srch);e.line.classList.toggle("gone",srch&&!re.has(e.i));e.line.classList.toggle("on",!!re&&re.has(e.i))});
+  N.forEach(n=>{n.g_el.classList.toggle("dim",!!rn&&!rn.has(n.id)&&!srch);n.g_el.classList.toggle("gone",srch&&!rn.has(n.id));n.g_el.classList.toggle("match",!!M&&M.has(n.id));
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))))});
   document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});
 }
@@ -484,7 +534,14 @@ function connList(n){
 }
 function renderNote(){
   const s=state.sel;
-  if(!s&&state.goal){
+  const M=matches();
+  if(!s&&M){
+    const list=N.filter(n=>M.has(n.id));
+    note.innerHTML=list.length?`<div><span class="kind">Поиск</span><h2>Найдено: ${list.length}</h2></div>
+      ${list.length===1?`<p class="how">${esc(list[0].tip)}</p>${connList(list[0])}`:`<p class="kind">Наведи на добавку на графе, чтобы увидеть её связи, или нажми на неё в списке.</p>
+      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:${gcol(n)};margin-top:7px"></span><span><b>${esc(n.name)}</b></span></button></li>`).join("")}</ul>`}`
+      :`<h2>Ничего не нашлось</h2><p class="kind">Попробуй по-другому: по-русски, по-английски или первые буквы.</p>`;
+  } else if(!s&&state.goal){
     const g=G[state.goal],list=N.filter(n=>n.g.includes(state.goal));
     note.innerHTML=`<div><span class="kind">Цель</span><h2 style="color:var(${g.c})">${g.n}</h2></div>
       <p class="how">${esc(g.note)}</p>
@@ -501,7 +558,8 @@ function renderNote(){
       <p class="kind">Выбери цель сверху, чтобы увидеть, какие добавки к ней относятся.</p>`;
   } else if(s.type==="node"){
     const n=byId[s.id];
-    note.innerHTML=`<div><h2>${esc(n.name)}</h2></div>${n.g.length?tags(n.g):""}<p class="how">${esc(n.tip)}</p>${connList(n)}`;
+    const inSet=mySet().has(n.id);
+    note.innerHTML=`<div class="shead"><h2>${esc(n.name)}</h2><button class="add" data-toggle="${n.id}" aria-pressed="${inSet}">${inSet?"В моём наборе ✓":"Добавить в набор"}</button></div>${n.g.length?tags(n.g):""}<p class="how">${esc(n.tip)}</p>${connList(n)}`;
   } else {
     const e=E[s.i];
     note.innerHTML=`<div><span class="kind"><span class="dot ${e.t}" style="display:inline-block;margin:0 6px 0 0"></span>${TNAME[e.t]} · данные ${e.ev}</span><h2>${esc(pairName(e))}</h2></div>
@@ -511,6 +569,7 @@ function renderNote(){
   }
   note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
   note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
+  note.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>toggleItem(b.dataset.toggle)));
 }
 
 const ord={syn:0,anti:1,warn:2};
@@ -557,10 +616,29 @@ const SKIP=[
  ["Мультивитамин «на всякий случай»","обычно в нём мало того, что нужно (D3, магний), и много того, что не нужно."],
  ["Железо без анализа","лишнее железо вредно. Пей только при низком ферритине."]
 ];
-const SLOT={morning:{w:"УТРОМ",t:"Утром с кофе",p:"Вместе с первой чашкой."},meal:{w:"ЗАВТРАК / ОБЕД",t:"С едой, где есть жир",p:"С самым сытным приёмом пищи."},bed:{w:"ЗА 30–60 МИН ДО СНА",t:"Перед сном",p:"Всё, что помогает расслабиться."},any:{w:"КОГДА УДОБНО",t:"В любое время",p:"Главное каждый день, время не важно."}};
-const picked=new Set(["base"]);let schedMode="mine";
+const DEF={D3:["2000 МЕ, потом по анализу","meal"],K2:["100 мкг","meal"],A:["только по анализу","meal"],E:["до 200 МЕ","meal"],C:["250–500 мг","meal"],B1:["бенфотиамин 150–300 мг","meal"],B6:["до 25 мг","meal"],B9:["400 мкг","meal"],B12:["по анализу","meal"],Ca:["до 500 мг за раз","dinner"],Mg:["200–400 мг глицината","bed"],Zn:["15–25 мг","meal"],Cu:["1–2 мг","dinner"],Fe:["по схеме врача","empty"],Se:["50–100 мкг","meal"],I:["150 мкг","meal"],O3:["1–2 г EPA+DHA","meal"],Cur:["500–1000 мг с пиперином","meal"],Pip:["5–10 мг","meal"],Q10:["100–200 мг","meal"],Cre:["3–5 г","any"],Gly:["3 г","bed"],NAD:["250–500 мг","morning"],Api:["50 мг","bed"],NAC:["600 мг","meal"],Tau:["1–3 г","any"],LT:["100–200 мг","morning"],Ash:["300–600 мг","bed"],Cof:["1–2 чашки","morning"]};
+const SLOT={empty:{w:"ПОСЛЕ ПОДЪЁМА",t:"Утром натощак",p:"За 30–60 минут до завтрака."},morning:{w:"УТРОМ",t:"Утром с кофе",p:"Вместе с первой чашкой."},meal:{w:"ЗАВТРАК / ОБЕД",t:"С едой, где есть жир",p:"С самым сытным приёмом пищи."},dinner:{w:"УЖИН",t:"С ужином",p:"Отдельно от утреннего железа."},bed:{w:"ЗА 30–60 МИН ДО СНА",t:"Перед сном",p:"Всё, что помогает расслабиться."},any:{w:"КОГДА УДОБНО",t:"В любое время",p:"Главное каждый день."}};
+const SLOTS=["empty","morning","meal","dinner","bed","any"];
+let picked=new Set(["base"]),extras=new Set(),excluded=new Set(),schedMode="mine";
+try{const sv=JSON.parse(localStorage.getItem("supp-set-v1")||"null");if(sv){picked=new Set(sv.p.filter(id=>STACKS.some(s=>s.id===id)));extras=new Set(sv.x.filter(id=>byId[id]));excluded=new Set(sv.e)}}catch(_){}
+function save(){try{localStorage.setItem("supp-set-v1",JSON.stringify({p:[...picked],x:[...extras],e:[...excluded]}))}catch(_){}}
 const pill=n=>`<span class="mini" style="border-color:${gcol(n)}">${esc(n.s)}</span>`;
-function countPills(ids){return ids.filter(id=>id!=="Cof").length}
+const countPills=ids=>ids.filter(id=>id!=="Cof").length;
+function inStacks(id){return STACKS.some(s=>picked.has(s.id)&&s.items.some(x=>x[0]===id))}
+function mySet(){
+  const m=new Map();
+  STACKS.filter(s=>picked.has(s.id)).forEach(s=>s.items.forEach(([id,d,sl,opt])=>{
+    if(excluded.has(id))return;const prev=m.get(id);
+    if(!prev||(prev.opt&&!opt))m.set(id,{id,d,sl,opt:!!opt});
+  }));
+  extras.forEach(id=>{if(!m.has(id))m.set(id,{id,d:DEF[id][0],sl:DEF[id][1],opt:false})});
+  return m;
+}
+function toggleItem(id){
+  if(mySet().has(id)){extras.delete(id);if(inStacks(id))excluded.add(id)}
+  else{excluded.delete(id);if(!inStacks(id))extras.add(id)}
+  save();renderPlan();if(state.sel&&state.sel.type==="node")renderNote();
+}
 document.getElementById("stacks").innerHTML=STACKS.map((s,i)=>{
   const core=s.items.filter(x=>!x[3]);
   return `<article class="stack" id="stack-${s.id}"><div class="rank">${i+1}</div><div class="sbody">
@@ -571,36 +649,36 @@ document.getElementById("stacks").innerHTML=STACKS.map((s,i)=>{
   </div></article>`}).join("");
 document.getElementById("skip").innerHTML=SKIP.map(([a,b])=>`<li><b>${a}</b><span>${b}</span></li>`).join("");
 
-function myPlan(){
-  const seen=new Map();
-  STACKS.filter(s=>picked.has(s.id)).forEach(s=>s.items.forEach(([id,d,sl,opt])=>{
-    const prev=seen.get(id);
-    if(!prev) seen.set(id,{id,d,sl,opt:!!opt});
-    else if(prev.opt&&!opt) seen.set(id,{id,d,sl,opt:false}); // required in another stack wins
-  }));
-  return [...seen.values()];
-}
+function itemBtn(x){const n=byId[x.id];return `<button class="titem${x.opt?" opt":""}" data-n="${x.id}">${pill(n)}<span><b>${esc(n.name)}</b>${x.d?`<span class="t">${x.opt?"по желанию · ":""}${esc(x.d)}</span>`:""}</span></button>`}
+function rows(list){return list.map(r=>`<div class="tline"><div class="tl-when"><span class="when">${r.w}</span><h3>${r.t}</h3><p>${r.p}</p></div><div class="tl-items">${r.its.map(itemBtn).join("")}</div></div>`).join("")}
 function renderPlan(){
-  document.querySelectorAll(".add").forEach(b=>{const on=picked.has(b.dataset.s);b.setAttribute("aria-pressed",on);b.textContent=on?"В наборе ✓":"Добавить в набор";document.getElementById("stack-"+b.dataset.s).classList.toggle("on",on)});
+  const m=mySet();
+  document.querySelectorAll(".add[data-s]").forEach(b=>{const on=picked.has(b.dataset.s);b.setAttribute("aria-pressed",on);b.textContent=on?"В наборе ✓":"Добавить в набор";document.getElementById("stack-"+b.dataset.s).classList.toggle("on",on)});
+  document.getElementById("pchips").innerHTML=N.map(n=>`<button class="pchip" data-p="${n.id}" aria-pressed="${m.has(n.id)}">${pill(n)}<span>${esc(n.name)}</span></button>`).join("");
   document.querySelectorAll("[data-m]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===schedMode));
-  const plan=document.getElementById("plan"),title=document.getElementById("schedTitle");
+  const plan=document.getElementById("plan"),title=document.getElementById("schedTitle"),clash=document.getElementById("clash");
   if(schedMode==="all"){
-    title.textContent="Расписание: все добавки";
-    plan.innerHTML=PLAN.map(s=>`<div class="slot"><span class="when">${s.w}</span><h3>${s.t}</h3><p>${s.p}</p><ul>${s.items.map(([id,nt])=>{const n=byId[id];
-      return `<li><button data-n="${id}">${pill(n)}<span><b>${esc(n.name)}</b>${nt?`<span class="t">${esc(nt)}</span>`:""}</span></button></li>`}).join("")}</ul></div>`).join("");
+    title.textContent="Расписание: все добавки";clash.hidden=true;
+    plan.innerHTML=rows(PLAN.map(r=>({w:r.w,t:r.t,p:r.p,its:r.items.map(([id,nt])=>({id,d:nt||""}))})));
     return;
   }
-  const items=myPlan(),req=items.filter(x=>!x.opt);
-  title.textContent=items.length?`Мой набор: ${countPills(req.map(x=>x.id))} добавок в день`+(items.length>req.length?` + ${items.length-req.length} по желанию`:""):"Мой набор";
-  if(!items.length){plan.innerHTML=`<p class="empty">Набор пуст. Добавь хотя бы «Базу» выше, и здесь появится расписание на день.</p>`;return}
-  plan.innerHTML=["morning","meal","bed","any"].map(k=>{const its=items.filter(x=>x.sl===k);if(!its.length)return"";const s=SLOT[k];
-    return `<div class="slot"><span class="when">${s.w}</span><h3>${s.t}</h3><p>${s.p}</p><ul>${its.map(x=>{const n=byId[x.id];
-      return `<li><button data-n="${x.id}">${pill(n)}<span><b>${esc(n.name)}</b><span class="t">${x.opt?"по желанию · ":""}${esc(x.d)}</span></span></button></li>`}).join("")}</ul></div>`}).join("");
+  const items=[...m.values()],req=items.filter(x=>!x.opt);
+  title.textContent=items.length?`Мой набор: ${countPills(req.map(x=>x.id))} в день`+(items.length>req.length?` + ${items.length-req.length} по желанию`:""):"Мой набор";
+  if(!items.length){plan.innerHTML=`<p class="empty">Набор пуст. Добавь «Базу» или выбери добавки выше, и здесь появится расписание на день.</p>`;clash.hidden=true;return}
+  plan.innerHTML=rows(SLOTS.map(k=>({...SLOT[k],its:items.filter(x=>x.sl===k)})).filter(r=>r.its.length));
+  const cl=E.filter(e=>e.t!=="syn"&&m.has(e.a)&&m.has(e.b));
+  clash.hidden=!cl.length;
+  document.getElementById("clashList").innerHTML=cl.map(e=>`<li><span class="dot ${e.t}"></span><span><b>${esc(pairName(e))}</b><br><span class="t">${esc(e.txt)}</span></span></li>`).join("");
 }
-document.getElementById("stacks").addEventListener("click",ev=>{const b=ev.target.closest(".add");if(!b)return;
-  const id=b.dataset.s;picked.has(id)?picked.delete(id):picked.add(id);schedMode="mine";renderPlan()});
+document.getElementById("stacks").addEventListener("click",ev=>{const b=ev.target.closest(".add[data-s]");if(!b)return;
+  const id=b.dataset.s,st=STACKS.find(x=>x.id===id);
+  if(picked.has(id))picked.delete(id);else{picked.add(id);st.items.forEach(x=>excluded.delete(x[0]))}
+  schedMode="mine";save();renderPlan()});
+document.getElementById("pchips").addEventListener("click",ev=>{const b=ev.target.closest("[data-p]");if(!b)return;schedMode="mine";toggleItem(b.dataset.p)});
+document.getElementById("resetSet").addEventListener("click",()=>{picked=new Set(["base"]);extras.clear();excluded.clear();schedMode="mine";save();renderPlan()});
 document.querySelectorAll("[data-m]").forEach(b=>b.addEventListener("click",()=>{schedMode=b.dataset.m;renderPlan()}));
 renderPlan();
+
 document.getElementById("plan").addEventListener("click",ev=>{const b=ev.target.closest("[data-n]");if(!b)return;showTab("graph");select({type:"node",id:b.dataset.n});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
 
 /* ---------- training ---------- */
@@ -677,6 +755,11 @@ function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t
 TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>showTab(t)));
 if(location.hash==="#plan")showTab("plan");
 if(location.hash==="#train")showTab("train");
+
+const qIn=document.getElementById("q"),qCount=document.getElementById("qcount");
+qIn.addEventListener("input",()=>{state.q=qIn.value;state.sel=null;const M=matches();qCount.textContent=M?`${M.size}`:"";applyView();renderNote()});
+qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&&M.size){ev.preventDefault();select({type:"node",id:[...M][0]})}}
+  if(ev.key==="Escape"){qIn.value="";state.q="";qCount.textContent="";applyView();renderNote()}});
 
 applyView();renderNote();
 </script>
