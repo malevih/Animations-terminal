@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Карта добавок: какие витамины, минералы и добавки помогают друг другу, какие мешают, когда их принимать и какие тренировки дают больше всего пользы.">
+<title>Карта добавок</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: deliberate single dark theme. Deep black ground, white type, saturated colour only where it carries meaning (goals, relation types). */
+:root{
+  color-scheme:dark;
+  --bg:#050506; --panel:#0D0E11; --raise:#15171B; --ink:#F3F2EE; --muted:#8C8F98; --faint:#2A2D33;
+  --syn:#E9E7E0; --anti:#FF3D57; --warn:#FFB224;
+  --g-long:#B58CFF; --g-infl:#FF8A3D; --g-sleep:#4D7CFF; --g-energy:#FFE04A;
+  --g-brain:#25E0D0; --g-heart:#FF4F9A; --g-bones:#E6DCC4; --g-immune:#8FE04A;
+  --f-body:"Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 56px;display:grid;gap:24px}
+h1{font-weight:800;font-size:clamp(30px,5vw,52px);line-height:1;margin:0;letter-spacing:-.035em}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--g-long),var(--g-heart) 45%,var(--g-infl));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:10px 0 0;color:var(--muted);max-width:62ch}
+h2{font-size:19px;font-weight:700;margin:0;line-height:1.25;letter-spacing:-.01em}
+h3{font-size:16px;font-weight:700;margin:0;line-height:1.3}
+p{margin:0}
+button{font:inherit}
+.back{display:inline-block;margin-bottom:14px;color:var(--muted);text-decoration:none;font:500 13px var(--f-mono)}
+.back:hover{color:var(--ink)}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.tabs{display:flex;gap:4px;padding:4px;background:var(--panel);border-radius:10px;width:max-content;max-width:100%;overflow-x:auto}
+.tab{all:unset;cursor:pointer;font-weight:500;padding:8px 16px;border-radius:7px;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.tab:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.view{display:grid;gap:22px}
+
+.filters{display:grid;gap:10px}
+.frow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flabel{font-size:12.5px;color:var(--muted);width:60px}
+@media (max-width:600px){.flabel{width:100%}}
+.chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;border:1px solid var(--faint);color:var(--ink);font-size:13.5px}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.gdot{width:9px;height:9px;border-radius:50%;flex:none}
+.ln{width:16px;height:0;border-top:2px solid}
+.ln.syn{border-color:var(--syn)}.ln.anti{border-color:var(--anti)}.ln.warn{border-color:var(--warn);border-top-style:dotted}
+.chip[aria-pressed="true"] .ln.syn{border-color:var(--bg)}
+.chk{display:inline-flex;gap:7px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;margin-left:6px}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.stage{background:radial-gradient(ellipse at 50% 45%,#121319 0%,var(--panel) 55%,var(--bg) 100%);border:1px solid var(--faint);border-radius:14px;min-width:0;overflow:hidden}
+svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.edge{stroke-linecap:round;transition:opacity .25s}
+.edge.syn{stroke:var(--syn);stroke-opacity:.55;stroke-dasharray:5 7;animation:flow 1.4s linear infinite}
+.edge.anti{stroke:var(--anti);stroke-opacity:.9}
+.edge.warn{stroke:var(--warn);stroke-opacity:.85;stroke-dasharray:1.5 5}
+.edge.evA{stroke-width:2.6}.edge.evB{stroke-width:1.7}.edge.evC{stroke-width:1.1}
+.edge.on{stroke-opacity:1}
+.hit{stroke:transparent;stroke-width:14;cursor:pointer}
+@keyframes flow{to{stroke-dashoffset:-12}}
+.node{cursor:grab;touch-action:none;transition:opacity .25s}
+.node .in{transform-box:fill-box;transform-origin:center;animation:pop .7s cubic-bezier(.2,.9,.25,1.25) both;animation-delay:var(--d,0s);transition:filter .25s}
+@keyframes pop{from{opacity:0;transform:scale(.3)}}
+.node .core{fill:#16181D;stroke:#2A2D33;stroke-width:1}
+.node .sym{font:700 11px var(--f-mono);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node .nm{font:500 11px var(--f-body);fill:var(--muted);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.node .arc{fill:none;stroke-linecap:round}
+.node:hover .in,.node.sel .in{filter:drop-shadow(0 0 7px var(--glow))}
+.node.sel .core{fill:var(--ink)}
+.node.sel .sym{fill:var(--bg)}
+.node.sel .nm,.node:hover .nm{fill:var(--ink)}
+.dim{opacity:.1}
+.hide{display:none}
+
+.note{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:14px;align-content:start;min-width:0}
+.kind{font-size:12.5px;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid;white-space:nowrap}
+.how{padding:12px 14px;background:var(--raise);border-radius:10px}
+.rules{margin:0;padding-left:20px;display:grid;gap:9px}
+.rules li::marker{color:var(--muted);font-family:var(--f-mono);font-size:12px}
+.list{list-style:none;margin:0;padding:0;display:grid}
+.list button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--faint)}
+.list button:hover b{text-decoration:underline;text-underline-offset:3px}
+.list .t{font-size:13.5px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;margin-top:7px}
+.dot.syn{background:var(--syn)}.dot.anti{background:var(--anti)}.dot.warn{background:var(--warn)}
+.ev{font:700 11px var(--f-mono);color:var(--ink);border:1px solid var(--muted);border-radius:4px;padding:2px 6px;white-space:nowrap;align-self:start;justify-self:end;line-height:1.3}
+
+.table{display:grid}
+.thead,.trow{display:grid;grid-template-columns:230px 130px minmax(0,1fr) 34px;gap:16px}
+.thead{font-size:12.5px;color:var(--muted);padding:0 0 8px;border-bottom:1px solid var(--faint)}
+.trow{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:230px 130px minmax(0,1fr) 34px;gap:16px;padding:11px 0;border-bottom:1px solid var(--faint);font-size:14px}
+.trow:hover{background:var(--panel)}
+.trow .pr{font-weight:500}
+.trow .ty{display:flex;gap:8px;align-items:baseline}
+.trow .ty .dot{margin-top:0;flex:none}
+.trow .tx{color:var(--muted)}
+.trow .ev{justify-self:start;align-self:start}
+@media (max-width:720px){
+  .thead{display:none}
+  .trow{grid-template-columns:minmax(0,1fr) auto;gap:3px 12px}
+  .trow .pr{grid-column:1}.trow .ev{grid-column:2;grid-row:1}
+  .trow .ty{grid-column:1/-1;font-size:13px}.trow .tx{grid-column:1/-1}
+}
+
+.plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+@media (max-width:960px){.plan{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:540px){.plan{grid-template-columns:minmax(0,1fr)}}
+.slot{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:16px;display:grid;gap:10px;align-content:start;min-width:0}
+.slot .when{font:700 11px var(--f-mono);color:var(--muted);letter-spacing:.06em}
+.slot p{font-size:13.5px;color:var(--muted)}
+.slot ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.slot li button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:center;padding:5px 4px;border-radius:8px}
+.slot li button:hover{background:var(--raise)}
+.mini{width:30px;height:30px;border-radius:50%;border:2px solid;display:grid;place-items:center;font:700 9.5px var(--f-mono);background:#16181D}
+.slot .t{display:block;font-size:12.5px;color:var(--muted)}
+.box{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:10px}
+.box ul{margin:0;padding-left:20px;display:grid;gap:6px}
+
+.tgroup{display:grid;gap:14px}
+.tgroup > p{color:var(--muted);max-width:70ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+@media (max-width:360px){.cards{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:10px;align-content:start;position:relative;overflow:hidden;min-width:0}
+.card::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--stripe)}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.card .orig{font-size:13px;color:var(--muted)}
+.card .meta{font:500 12px var(--f-mono);color:var(--muted)}
+.card .lbl{font-size:12px;color:var(--muted);margin-bottom:2px}
+.card details{border-top:1px solid var(--faint);padding-top:10px}
+.card summary{cursor:pointer;font-weight:500;font-size:14px}
+.card ol{margin:10px 0 0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.card ol span{color:var(--muted)}
+.nuance{display:grid;gap:0}
+.nuance li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 0;border-top:1px solid var(--faint);list-style:none}
+.box ul.nuance{margin:0;padding:0}
+
+.foot{font-size:13px;color:var(--muted);max-width:80ch;display:grid;gap:6px}
+@media (prefers-reduced-motion:reduce){.edge.syn,.node .in{animation:none}}
+</style>
+<style>*{box-sizing:border-box}html,body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="../">← все анимации</a>
+    <h1>Карта <em>добавок</em></h1>
+    <p class="sub">Что с чем принимать, что разносить по времени и для чего это всё вообще пьют. Цветное кольцо вокруг добавки показывает цели, линии показывают связи.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Связи</button>
+    <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan">Когда принимать</button>
+    <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train">Тренировки</button>
+  </div>
+
+  <!-- GRAPH -->
+  <section class="view" id="view-graph" role="tabpanel" aria-labelledby="tab-graph">
+    <div class="filters">
+      <div class="frow" id="goalRow" role="group" aria-label="Цель"><span class="flabel">Цель</span></div>
+      <div class="frow" role="group" aria-label="Тип связи">
+        <span class="flabel">Связи</span>
+        <button class="chip rel" id="r-all" data-f="all" aria-pressed="true">Все</button>
+        <button class="chip rel" id="r-syn" data-f="syn" aria-pressed="false"><span class="ln syn"></span>Помогают</button>
+        <button class="chip rel" id="r-anti" data-f="anti" aria-pressed="false"><span class="ln anti"></span>Мешают</button>
+        <button class="chip rel" id="r-warn" data-f="warn" aria-pressed="false"><span class="ln warn"></span>Зависит от дозы</button>
+        <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="stage" id="stage"><svg id="g" aria-label="Граф взаимодействий добавок"></svg></div>
+      <aside class="note" id="note" aria-live="polite"></aside>
+    </div>
+
+    <div>
+      <h2 style="margin-bottom:12px">Все связи</h2>
+      <div class="thead"><span>Пара</span><span>Тип</span><span>Что происходит</span><span>Данные</span></div>
+      <div class="table" id="table"></div>
+    </div>
+  </section>
+
+  <!-- SCHEDULE -->
+  <section class="view" id="view-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+    <div class="plan" id="plan"></div>
+    <div class="box">
+      <h2>Что разносить по времени</h2>
+      <ul>
+        <li>Железо и кальций: минимум 2 часа между ними.</li>
+        <li>Железо и цинк: в разные приёмы.</li>
+        <li>Кофе и чай: не раньше чем через час после железа или цинка.</li>
+        <li>Цинк больше 40 мг в день несколько месяцев подряд: добавь 1–2 мг меди.</li>
+        <li>Креатин и таурин можно пить в любое время, главное каждый день.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- TRAINING -->
+  <section class="view" id="view-train" role="tabpanel" aria-labelledby="tab-train" hidden>
+    <div id="train"></div>
+  </section>
+
+  <div class="foot">
+    <p>Данные: <b>A</b> — клинические исследования, эффект воспроизводится. <b>B</b> — понятный механизм и часть клинических данных или большие наблюдения. <b>C</b> — слабые данные, исследования на животных или эффект только на больших дозах.</p>
+    <p>Это справка, а не назначение. Железо, йод, витамин A и большие дозы витамина D принимают по анализам. Если пьёшь лекарства (антикоагулянты, гормоны щитовидной железы, антибиотики, снотворные, антидепрессанты), сверься с врачом.</p>
+  </div>
+</div>
+
+<script>
+const G={
+ long:  {n:"Антиэйдж",c:"--g-long",note:"Ни одна добавка пока не доказала, что продлевает жизнь человеку. Почти все данные здесь получены на клетках и животных. Гораздо сильнее на продолжительность жизни влияют силовые, кардио и сон, смотри вкладку «Тренировки»."},
+ infl:  {n:"Против воспаления",c:"--g-infl",note:"Омега-3 и куркумин снижают маркеры воспаления (СРБ, IL-6) в исследованиях. Эффект умеренный и сильнее заметен у тех, у кого воспаление повышено."},
+ sleep: {n:"Сон и стресс",c:"--g-sleep",note:"Лучшие данные у ашваганды, глицина и магния (особенно при его дефиците). Апигенин и L-теанин изучены слабее."},
+ energy:{n:"Энергия",c:"--g-energy",note:"Добавки дают энергию в основном тогда, когда чего-то не хватает: железа, B12, D3, йода. При нормальных анализах эффекта обычно нет. Исключения: кофеин и креатин."},
+ brain: {n:"Мозг и фокус",c:"--g-brain",note:"Самые убедительные данные у кофеина с L-теанином и у креатина (особенно при недосыпе и у тех, кто ест мало мяса). Омега-3 важны, если редко ешь рыбу."},
+ heart: {n:"Сердце и сосуды",c:"--g-heart",note:"Омега-3 в дозе от 2 г снижает триглицериды. Q10 полезен при приёме статинов. Роль K2 для сосудов пока изучают."},
+ bones: {n:"Кости и мышцы",c:"--g-bones",note:"Для костей работают кальций, D3 и K2 вместе. Для мышц креатин даёт эффект только вместе с силовыми тренировками."},
+ immune:{n:"Иммунитет",c:"--g-immune",note:"D3 при дефиците снижает риск простуд. Цинк в виде пастилок сокращает простуду, если начать в первые сутки. Витамин C немного сокращает её длительность."}
+};
+const N=[
+ {id:"D3",s:"D3",name:"Витамин D3",g:["bones","immune"],tip:"С самой жирной едой за день, лучше в первой половине дня. Дозу подбирают по анализу 25(OH)D."},
+ {id:"K2",s:"K2",name:"Витамин K2",g:["bones","heart"],tip:"Форма MK-7, с жирной едой, удобно вместе с D3. Если принимаешь варфарин, только после разговора с врачом."},
+ {id:"A",s:"A",name:"Витамин A",g:["immune"],tip:"С едой. Ретинол дольше нескольких месяцев в дозе выше 3000 мкг в день токсичен. Бета-каротин безопаснее."},
+ {id:"E",s:"E",name:"Витамин E",g:["immune","infl"],tip:"С жирной едой. Дозы выше 400 МЕ в день без показаний не нужны."},
+ {id:"C",s:"C",name:"Витамин C",g:["immune"],tip:"Большую дозу лучше разделить на два приёма. Если пьёшь железо, принимай их вместе."},
+ {id:"B1",s:"B1",name:"Витамин B1",g:["energy","brain"],tip:"Утром или днём. Бенфотиамин усваивается лучше обычного тиамина."},
+ {id:"B6",s:"B6",name:"Витамин B6",g:["brain","energy"],tip:"Долгий приём больших доз (от 50 мг в день) может вызвать онемение и покалывание в руках и ногах."},
+ {id:"B9",s:"B9",name:"Фолат (B9)",g:["heart","brain"],tip:"Метилфолат или фолиевая кислота. Большие дозы без B12 не принимают."},
+ {id:"B12",s:"B12",name:"Витамин B12",g:["energy","brain"],tip:"Утром. Особенно нужен при веганском питании, после 50 лет и при приёме метформина."},
+ {id:"Ca",s:"Ca",name:"Кальций",g:["bones"],tip:"Не больше 500 мг за раз. Карбонат пьют с едой, цитрат в любое время. Отдельно от железа."},
+ {id:"Mg",s:"Mg",name:"Магний",g:["sleep","heart","bones"],tip:"Вечером. Глицинат и цитрат усваиваются лучше и мягче для желудка, чем оксид."},
+ {id:"Zn",s:"Zn",name:"Цинк",g:["immune"],tip:"С едой, натощак может тошнить. Если пьёшь больше 40 мг в день несколько месяцев, добавь медь."},
+ {id:"Cu",s:"Cu",name:"Медь",g:["energy"],tip:"Обычно нужна только в паре с долгим приёмом цинка, 1–2 мг в день."},
+ {id:"Fe",s:"Fe",name:"Железо",g:["energy"],tip:"Только при подтверждённом дефиците. Натощак или через день, с витамином C. Без кофе, чая и кальция за 2 часа до и после."},
+ {id:"Se",s:"Se",name:"Селен",g:["immune"],tip:"Не больше 200 мкг в день. Один-два бразильских ореха дают примерно суточную норму."},
+ {id:"I",s:"I",name:"Йод",g:["energy"],tip:"Обычно хватает йодированной соли. При болезнях щитовидной железы добавки только с врачом."},
+ {id:"O3",s:"Ω3",name:"Омега-3",g:["infl","heart","brain"],tip:"С жирной едой. Смотри на количество EPA и DHA в капсуле, а не на общий вес рыбьего жира."},
+ {id:"Cur",s:"Cur",name:"Куркумин",g:["infl"],tip:"Сам по себе почти не всасывается. Нужен пиперин или специальная форма (липосомальная, мицеллярная)."},
+ {id:"Pip",s:"Pip",name:"Пиперин",g:[],tip:"Экстракт чёрного перца. Сам по себе ни для чего не нужен, усиливает всасывание других веществ. Может повышать уровень некоторых лекарств в крови."},
+ {id:"Q10",s:"Q10",name:"Коэнзим Q10",g:["energy","heart","long"],tip:"С жирной едой, утром или днём. Часто назначают вместе со статинами. Может ослаблять действие варфарина."},
+ {id:"Cre",s:"Cr",name:"Креатин",g:["bones","brain","energy"],tip:"3–5 г моногидрата каждый день, время приёма почти не важно. Пей достаточно воды."},
+ {id:"Gly",s:"Gly",name:"Глицин",g:["sleep","long"],tip:"3 г за 30–60 минут до сна. В небольших исследованиях люди быстрее засыпали и лучше чувствовали себя утром."},
+ {id:"NAD",s:"NAD",name:"NAD+ (NMN, NR)",g:["long","energy"],tip:"Предшественники NAD+, обычно 250–500 мг утром. Уровень NAD+ в крови они повышают, но пользу для здоровья у людей пока доказать не удалось."},
+ {id:"Api",s:"Api",name:"Апигенин",g:["sleep","long"],tip:"Флавоноид из ромашки. Обычно 50 мг за час до сна. Может усиливать действие снотворных и успокоительных."},
+ {id:"NAC",s:"NAC",name:"N-ацетилцистеин",g:["long","infl"],tip:"600–1200 мг в день. Из него организм делает глутатион, главный внутренний антиоксидант. С глицином образует связку GlyNAC."},
+ {id:"Tau",s:"Tau",name:"Таурин",g:["long","heart"],tip:"1–3 г в день. В исследовании на мышах и обезьянах (Science, 2023) таурин продлевал жизнь и улучшал здоровье. На людях это пока не проверено."},
+ {id:"LT",s:"L-T",name:"L-теанин",g:["brain","sleep"],tip:"100–200 мг. Утром с кофе сглаживает нервозность и помогает сосредоточиться. Вечером помогает расслабиться без сонливости."},
+ {id:"Ash",s:"Ash",name:"Ашваганда",g:["sleep"],tip:"300–600 мг стандартизированного экстракта вечером. В исследованиях снижает стресс и кортизол. Бывают редкие случаи поражения печени. Нельзя при беременности, при болезнях щитовидной железы только с врачом."},
+ {id:"Cof",s:"Caf",name:"Кофе и чай",g:["brain","energy"],tip:"Не пей их в течение часа после железа и цинка. Кофеин лучше не позже чем за 8 часов до сна."}
+];
+// [a, b, type, evidence, text]
+const E=[
+ ["D3","K2","syn","B","D3 усиливает всасывание кальция, а K2 активирует белки, которые направляют кальций в кости, а не в стенки сосудов. Механизм изучен хорошо, данных по долгосрочным результатам меньше."],
+ ["D3","Ca","syn","A","Витамин D управляет всасыванием кальция в кишечнике. При его дефиците усваивается лишь малая часть кальция."],
+ ["D3","Mg","syn","B","Магний нужен ферментам, которые переводят D3 в активную форму. При дефиците магния витамин D работает хуже."],
+ ["D3","O3","syn","B","D3 растворяется в жирах, поэтому с жирной едой или вместе с омега-3 усваивается лучше."],
+ ["Fe","C","syn","A","Витамин C переводит железо из растительной пищи и таблеток в форму, которая всасывается в 2–3 раза лучше."],
+ ["B12","B9","syn","A","Работают в одном цикле и вместе снижают гомоцистеин. Большие дозы фолиевой кислоты могут скрыть дефицит B12 в анализе крови."],
+ ["B6","B9","syn","B","Вместе с B9 и B12 участвует в обмене гомоцистеина."],
+ ["B6","Mg","syn","C","Популярная пара: считается, что B6 помогает магнию попасть в клетки. Данных пока мало."],
+ ["B1","Mg","syn","B","Магний нужен, чтобы тиамин перешёл в активную форму. При дефиците магния B1 работает хуже."],
+ ["B1","B12","syn","C","B1, B6 и B12 часто выпускают одним комплексом для нервной системы. Данные по пользе комбинации скромные."],
+ ["E","C","syn","B","Витамин C восстанавливает окисленный витамин E, и тот снова работает."],
+ ["E","Se","syn","B","Оба защищают мембраны клеток от окисления. Селен входит в фермент глутатионпероксидазу."],
+ ["Q10","E","syn","C","Q10 помогает восстанавливать окисленный витамин E. Оба растворяются в жирах, их удобно пить вместе с едой."],
+ ["Se","I","syn","B","Селен нужен, чтобы гормон T4 превращался в активный T3, и защищает щитовидную железу. Йод без селена работает хуже."],
+ ["Cur","Pip","syn","B","Пиперин замедляет распад куркумина в печени и кишечнике. В одном известном исследовании биодоступность выросла примерно в 20 раз."],
+ ["Zn","A","syn","B","Цинк нужен для белка, который переносит витамин A в крови."],
+ ["Cu","Fe","syn","B","Медь нужна для обмена железа. При дефиците меди бывает анемия, похожая на железодефицитную."],
+ ["Gly","NAC","syn","B","Вместе дают организму всё нужное для синтеза глутатиона. В небольших исследованиях на пожилых связка GlyNAC поднимала глутатион и улучшала ряд маркеров старения."],
+ ["Gly","Mg","syn","C","Оба помогают уснуть и хорошо сочетаются. В глицинате магния уже есть немного глицина."],
+ ["Gly","Api","syn","C","Частая пара для сна. У каждого есть небольшие исследования, у самой комбинации их нет, но и конфликта тоже."],
+ ["Api","Mg","syn","C","Ещё одна пара для сна. Исследований сочетания нет, мешать друг другу они не должны."],
+ ["Api","NAD","syn","C","Апигенин подавляет фермент CD38, который расщепляет NAD+. Пока это показано только на клетках и мышах."],
+ ["LT","Cof","syn","B","L-теанин с кофеином улучшает концентрацию сильнее, чем кофеин отдельно, и снижает нервозность. Это показано в нескольких небольших исследованиях."],
+ ["LT","Mg","syn","C","Пара для вечера: расслабляет, но не усыпляет. Исследований сочетания нет."],
+ ["Tau","Mg","syn","C","Оба успокаивают нервную систему и поддерживают ритм сердца. Таурат магния объединяет их в одной форме."],
+ ["Ash","Mg","syn","C","Вечерняя пара от стресса и для сна. Каждый по отдельности изучен, комбинация нет."],
+ ["Ca","Fe","anti","A","Кальций от 300 мг за раз снижает всасывание железа в этом приёме. Между ними нужно 2 часа и больше."],
+ ["Zn","Cu","anti","A","Если долго пить больше 40–50 мг цинка в день, развивается дефицит меди. Безопасное соотношение цинка к меди примерно от 8:1 до 15:1."],
+ ["Zn","Fe","anti","B","Мешают друг другу, если пить большие дозы вместе натощак. С едой эффект слабее."],
+ ["Cof","Fe","anti","A","Полифенолы кофе и чая снижают всасывание железа вдвое и сильнее."],
+ ["Cof","B1","anti","C","Танины чая и кофе частично разрушают тиамин. Это заметно только при очень большом количестве напитков и бедном питании."],
+ ["E","K2","anti","B","Витамин E в дозах от 400–800 МЕ мешает работе витамина K и повышает риск кровотечений."],
+ ["Ca","Zn","anti","C","Большие дозы кальция могут снижать усвоение цинка."],
+ ["Cur","Fe","anti","C","Куркумин связывает железо. Если ферритин низкий, большие дозы куркумина лучше не пить."],
+ ["Mg","Zn","warn","C","Их часто считают несовместимыми, но мешает только очень большая доза цинка, около 140 мг в день. В обычных дозах они нормально сочетаются, на этом построены комплексы вроде ZMA."],
+ ["Ca","Mg","warn","C","Мешают друг другу только в больших дозах. В обычных количествах проблемы нет, их часто выпускают вместе."],
+ ["A","D3","warn","C","В очень больших дозах витамин A может ослаблять действие витамина D. В обычных дозах этого нет."],
+ ["Cre","Cof","warn","C","Ранние исследования показывали, что кофеин ослабляет эффект креатина. Новые данные это в основном не подтверждают. Некоторым от этой пары бывает тяжело в желудке."],
+ ["NAD","B9","warn","C","Организм тратит метильные группы, чтобы вывести избыток никотинамида. Поэтому на больших дозах NMN или NR некоторые добавляют метилфолат, B12 или TMG. Клинических данных мало."]
+].map(([a,b,t,ev,txt],i)=>({i,a,b,t,ev,txt}));
+
+const TNAME={syn:"Помогают",anti:"Мешают",warn:"Зависит от дозы"};
+const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+const NS="http://www.w3.org/2000/svg";
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null};
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let W=800,H=640,S=1,R=17,alpha=1,raf=null;
+
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function pairName(e){return `${byId[e.a].name} + ${byId[e.b].name}`}
+function gcol(n){return n.g.length?`var(${G[n.g[0]].c})`:"var(--muted)"}
+function tags(goals){return `<div class="tags">${goals.map(k=>`<span class="tag" style="color:var(${G[k].c})">${G[k].n}</span>`).join("")}</div>`}
+
+/* ---------- goal chips ---------- */
+const goalRow=document.getElementById("goalRow");
+goalRow.insertAdjacentHTML("beforeend",`<button class="chip goal" id="goal-all" data-g="" aria-pressed="true">Все</button>`+
+  Object.entries(G).map(([k,g])=>`<button class="chip goal" id="goal-${k}" data-g="${k}" aria-pressed="false"><span class="gdot" style="background:var(${g.c})"></span>${g.n}</button>`).join(""));
+goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)return;
+  state.goal=b.dataset.g||null;state.sel=null;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
+
+/* ---------- graph ---------- */
+function measure(){
+  const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
+  W=w;H=Math.round(Math.min(760,Math.max(560,w*.9)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";return [ow,oh];
+}
+measure();
+N.forEach((n,i)=>{const a=i/N.length*Math.PI*2,r=Math.min(W,H)*.38;n.x=W/2+Math.cos(a)*r;n.y=H/2+Math.sin(a)*r;n.vx=n.vy=0});
+
+const gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
+E.forEach(e=>{
+  e.line=el("line",{class:`edge ${e.t} ev${e.ev}`},gE);
+  e.hit=el("line",{class:"hit"},gH);
+  const t=document.createElementNS(NS,"title");t.textContent=`${pairName(e)}: ${TNAME[e.t].toLowerCase()}`;e.hit.appendChild(t);
+  e.hit.addEventListener("click",ev=>{ev.stopPropagation();select({type:"edge",i:e.i})});
+});
+function arc(r,a0,a1){const p=a=>[Math.cos(a)*r,Math.sin(a)*r],[x0,y0]=p(a0),[x1,y1]=p(a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1-a0>Math.PI?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`}
+function buildNodes(){
+  gN.textContent="";
+  N.forEach((n,i)=>{
+    const g=el("g",{class:"node",tabindex:"0",role:"button","aria-label":n.name,style:`--glow:${gcol(n)}`},gN);
+    const inn=el("g",{class:"in",style:`--d:${(i*.03).toFixed(2)}s`},g);
+    const rr=R+4.5,k=n.g.length,gap=k>1?.32:0;
+    if(k===0) el("circle",{class:"arc",r:rr,style:"stroke:var(--muted)","stroke-width":2,"stroke-dasharray":"2 4"},inn);
+    else if(k===1) el("circle",{class:"arc",r:rr,style:`stroke:var(${G[n.g[0]].c})`,"stroke-width":3.5},inn);
+    else n.g.forEach((gk,j)=>{const a0=-Math.PI/2+j*2*Math.PI/k+gap/2,a1=a0+2*Math.PI/k-gap;
+      el("path",{class:"arc",d:arc(rr,a0,a1),style:`stroke:var(${G[gk].c})`,"stroke-width":3.5},inn)});
+    el("circle",{class:"core",r:R},inn);
+    const s=el("text",{class:"sym"},inn);s.textContent=n.s;if(n.s.length>2)s.style.fontSize="10px";
+    const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.name;
+    n.g_el=g;
+    g.addEventListener("pointerdown",ev=>startDrag(ev,n));
+    g.addEventListener("pointerenter",()=>{state.hover=n.id;applyView()});
+    g.addEventListener("pointerleave",()=>{state.hover=null;applyView()});
+    g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select({type:"node",id:n.id})}});
+  });
+}
+buildNodes();
+
+function visible(e){return (state.filter==="all"||state.filter===e.t)&&!(state.hideC&&e.ev==="C")}
+
+function tick(a){
+  const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2;
+  for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){
+    const p=N[i],q=N[j];let dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
+    if(d2<1){dx=Math.random()-.5;dy=Math.random()-.5;d2=1}
+    const d=Math.sqrt(d2),f=REP*a/Math.max(d2,MIN);
+    p.vx-=dx/d*f;p.vy-=dy/d*f;q.vx+=dx/d*f;q.vy+=dy/d*f;
+  }
+  E.forEach(e=>{const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
+    const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*.055*a;
+    p.vx+=dx*k;p.vy+=dy*k;q.vx-=dx*k;q.vy-=dy*k});
+  const padX=R+34,padT=R+10,padB=R+28;
+  N.forEach(n=>{
+    n.vx+=(W/2-n.x)*.006*a;n.vy+=(H/2-n.y)*.009*a;
+    if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
+    n.vx*=.6;n.vy*=.6;n.x+=n.vx;n.y+=n.vy;
+    n.x=Math.min(W-padX,Math.max(padX,n.x));n.y=Math.min(H-padB,Math.max(padT,n.y));
+  });
+}
+function render(){
+  E.forEach(e=>{const p=byId[e.a],q=byId[e.b];
+    for(const l of [e.line,e.hit]){l.setAttribute("x1",p.x.toFixed(1));l.setAttribute("y1",p.y.toFixed(1));l.setAttribute("x2",q.x.toFixed(1));l.setAttribute("y2",q.y.toFixed(1))}});
+  N.forEach(n=>n.g_el.setAttribute("transform",`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`));
+}
+function loop(){tick(alpha);render();alpha*=.985;if(alpha>.004||dragging)raf=requestAnimationFrame(loop);else raf=null}
+function heat(a){alpha=Math.max(alpha,a);if(!raf)raf=requestAnimationFrame(loop)}
+while(alpha>.35){tick(alpha);alpha*=.985}
+render();
+if(reduce){while(alpha>.004){tick(alpha);alpha*=.985}render()}else heat(alpha);
+
+let dragging=null;
+function pt(ev){const r=svg.getBoundingClientRect();return{x:(ev.clientX-r.left)*W/r.width,y:(ev.clientY-r.top)*H/r.height}}
+function startDrag(ev,n){ev.preventDefault();const p=pt(ev);dragging={n,sx:p.x,sy:p.y,moved:false};try{svg.setPointerCapture(ev.pointerId)}catch(_){}}
+svg.addEventListener("pointermove",ev=>{if(!dragging)return;const p=pt(ev);
+  if(!dragging.moved&&Math.hypot(p.x-dragging.sx,p.y-dragging.sy)<5)return;
+  dragging.moved=true;dragging.n.fx=p.x;dragging.n.fy=p.y;heat(.3)});
+function endDrag(){if(!dragging)return;const {n,moved}=dragging;n.fx=n.fy=null;dragging=null;if(!moved)select({type:"node",id:n.id});else heat(.15)}
+svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",endDrag);
+svg.addEventListener("click",ev=>{if(ev.target===svg)select(null)});
+
+function select(s){state.sel=s;applyView();renderNote()}
+function focusSets(){
+  const s=state.sel||(state.hover?{type:"node",id:state.hover}:null);
+  if(s&&s.type==="node"){const rn=new Set([s.id]),re=new Set();E.forEach(e=>{if(visible(e)&&(e.a===s.id||e.b===s.id)){re.add(e.i);rn.add(e.a);rn.add(e.b)}});return {rn,re,s}}
+  if(s&&s.type==="edge"){const e=E[s.i];return {rn:new Set([e.a,e.b]),re:new Set([e.i]),s}}
+  if(state.goal){const rn=new Set(N.filter(n=>n.g.includes(state.goal)).map(n=>n.id)),re=new Set();
+    E.forEach(e=>{if(rn.has(e.a)&&rn.has(e.b))re.add(e.i)});return {rn,re,s:null}}
+  return {rn:null,re:null,s:null};
+}
+function applyView(){
+  const {rn,re,s}=focusSets();
+  E.forEach(e=>{const v=visible(e)||(s&&s.type==="edge"&&s.i===e.i);
+    e.line.classList.toggle("hide",!v);e.hit.classList.toggle("hide",!v);
+    e.line.classList.toggle("dim",!!re&&!re.has(e.i));e.line.classList.toggle("on",!!re&&re.has(e.i))});
+  N.forEach(n=>{n.g_el.classList.toggle("dim",!!rn&&!rn.has(n.id));
+    n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))))});
+  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});
+}
+function connList(n){
+  const ord={syn:0,anti:1,warn:2};
+  const rel=E.filter(e=>(e.a===n.id||e.b===n.id)&&visible(e)).sort((x,y)=>ord[x.t]-ord[y.t]||x.ev.localeCompare(y.ev));
+  return `<ul class="list">${rel.map(e=>{const o=e.a===n.id?byId[e.b]:byId[e.a];
+    return `<li><button data-e="${e.i}"><span class="dot ${e.t}"></span><span><b>${esc(o.name)}</b> <span class="ev">${e.ev}</span><br><span class="t">${esc(e.txt)}</span></span></button></li>`}).join("")||'<li class="kind">Под этим фильтром связей нет.</li>'}</ul>`;
+}
+function renderNote(){
+  const s=state.sel;
+  if(!s&&state.goal){
+    const g=G[state.goal],list=N.filter(n=>n.g.includes(state.goal));
+    note.innerHTML=`<div><span class="kind">Цель</span><h2 style="color:var(${g.c})">${g.n}</h2></div>
+      <p class="how">${esc(g.note)}</p>
+      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:var(${g.c});margin-top:7px"></span><span><b>${esc(n.name)}</b></span></button></li>`).join("")}</ul>`;
+  } else if(!s){
+    note.innerHTML=`<h2>Коротко</h2><ol class="rules">
+      <li>D3, K2 и магний работают в связке. D3 и K2 пей с едой, в которой есть жир.</li>
+      <li>Железо пей с витамином C. Кальций, кофе и чай отодвинь от железа на 2 часа.</li>
+      <li>Если пьёшь больше 40 мг цинка в день несколько месяцев, добавь медь.</li>
+      <li>Куркумин без пиперина почти не всасывается.</li>
+      <li>Магний и цинк в обычных дозах совместимы. Мешает только доза цинка около 140 мг.</li>
+      <li>Кофе с L-теанином бодрит без нервозности.</li>
+      <li>Глицин, магний и апигенин вечером хорошо сочетаются для сна.</li></ol>
+      <p class="kind">Выбери цель сверху, чтобы увидеть, какие добавки к ней относятся.</p>`;
+  } else if(s.type==="node"){
+    const n=byId[s.id];
+    note.innerHTML=`<div><h2>${esc(n.name)}</h2></div>${n.g.length?tags(n.g):""}<p class="how">${esc(n.tip)}</p>${connList(n)}`;
+  } else {
+    const e=E[s.i];
+    note.innerHTML=`<div><span class="kind"><span class="dot ${e.t}" style="display:inline-block;margin:0 6px 0 0"></span>${TNAME[e.t]} · данные ${e.ev}</span><h2>${esc(pairName(e))}</h2></div>
+      <p>${esc(e.txt)}</p>
+      <ul class="list"><li><button data-n="${e.a}"><span></span><span>Все связи: <b>${esc(byId[e.a].name)}</b></span></button></li>
+      <li><button data-n="${e.b}"><span></span><span>Все связи: <b>${esc(byId[e.b].name)}</b></span></button></li></ul>`;
+  }
+  note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
+  note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
+}
+
+const ord={syn:0,anti:1,warn:2};
+document.getElementById("table").innerHTML=[...E].sort((x,y)=>ord[x.t]-ord[y.t]||x.ev.localeCompare(y.ev)).map(e=>
+  `<button class="trow" data-i="${e.i}"><span class="pr">${esc(pairName(e))}</span><span class="ty"><span class="dot ${e.t}"></span>${TNAME[e.t]}</span><span class="tx">${esc(e.txt)}</span><span class="ev">${e.ev}</span></button>`).join("");
+document.getElementById("table").addEventListener("click",ev=>{const r=ev.target.closest(".trow");if(!r)return;select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
+
+document.querySelectorAll(".rel").forEach(b=>b.addEventListener("click",()=>{
+  state.filter=b.dataset.f;document.querySelectorAll(".rel").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  if(state.sel&&state.sel.type==="edge"&&!visible(E[state.sel.i]))state.sel=null;applyView();renderNote()}));
+document.getElementById("hideC").addEventListener("change",ev=>{state.hideC=ev.target.checked;
+  if(state.sel&&state.sel.type==="edge"&&!visible(E[state.sel.i]))state.sel=null;applyView();renderNote()});
+
+/* ---------- schedule ---------- */
+const PLAN=[
+ {w:"ПОСЛЕ ПОДЪЁМА",t:"Утром натощак",p:"За 30–60 минут до завтрака. Только если железо назначено по анализам.",items:[["Fe","через день или по схеме врача"],["C","вместе с железом"]]},
+ {w:"ЗАВТРАК / ОБЕД",t:"С едой, где есть жир",p:"Всё жирорастворимое пей с самой сытной едой. Витамины группы B лучше в первой половине дня.",items:[["D3"],["K2"],["O3"],["Q10"],["A"],["E"],["Cur","вместе с пиперином"],["Pip"],["B1"],["B6"],["B9"],["B12"],["NAD","лучше утром"],["NAC"],["LT","с утренним кофе"],["Zn","в обед, отдельно от железа"],["Se"],["I"]]},
+ {w:"УЖИН",t:"С ужином",p:"Кальций отдельно от утреннего железа.",items:[["Ca","не больше 500 мг за раз"],["Cu","только при долгом приёме цинка"]]},
+ {w:"ЗА 30–60 МИН ДО СНА",t:"Перед сном",p:"Всё, что помогает расслабиться и уснуть.",items:[["Mg","глицинат"],["Gly","3 г"],["Api","50 мг"],["Ash","300–600 мг"],["Tau","или в любое время"],["Cre","или в любое время"]]}
+];
+document.getElementById("plan").innerHTML=PLAN.map(s=>`<div class="slot"><span class="when">${s.w}</span><h3>${s.t}</h3><p>${s.p}</p><ul>${s.items.map(([id,nt])=>{const n=byId[id];
+  return `<li><button data-n="${id}"><span class="mini" style="border-color:${gcol(n)}">${esc(n.s)}</span><span><b>${esc(n.name)}</b>${nt?`<span class="t">${esc(nt)}</span>`:""}</span></button></li>`}).join("")}</ul></div>`).join("");
+document.getElementById("plan").addEventListener("click",ev=>{const b=ev.target.closest("[data-n]");if(!b)return;showTab("graph");select({type:"node",id:b.dataset.n});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
+
+/* ---------- training ---------- */
+const TR=[
+ {h:"Утренний запуск",p:"5–20 минут после подъёма. Разгоняют кровь, будят нервную систему и сдвигают внутренние часы на день.",items:[
+  {n:"Ба Дуань Цзинь",o:"八段锦 · «Восемь кусков парчи»",m:"10–15 мин · каждый день",g:["sleep","heart","long"],ev:"B",
+   how:"Восемь плавных движений, каждое 6–8 раз. Дыхание медленное, через нос, движения под дыхание.",
+   proof:"Метаанализы десятков исследований показывают улучшение сна, равновесия, гибкости, давления и настроения, особенно у людей старше 50 и при хронических болезнях.",
+   steps:[["Поддерживать небо обеими руками","руки в замке, тянешься вверх и вытягиваешь весь корпус"],["Натянуть лук","стойка всадника, одна рука «натягивает тетиву», другая указывает в сторону"],["Поднять одну руку","одна ладонь толкает вверх, другая вниз, растягивает бока"],["Оглянуться назад","медленный поворот головы и плеч, шея и грудной отдел"],["Покачать головой и хвостом","в стойке всадника наклоны и круги корпусом"],["Коснуться стоп","наклон вперёд, ладони скользят по ногам вниз, спина и подколенные мышцы"],["Сжать кулаки с яростным взглядом","удары кулаком вперёд на выдохе в стойке всадника"],["Подъём на носки и встряхивание","поднимаешься на носки и мягко падаешь на пятки 7 раз, всё тело встряхивается"]]},
+  {n:"Встряхивание и махи руками",o:"甩手功 · Шуай Шоу Гун",m:"2–5 мин · утром",g:["bones","heart"],ev:"C",
+   how:"Поднимайся на носки и мягко опускайся на пятки 20–30 раз, затем свободно раскачивай расслабленными руками вперёд-назад.",
+   proof:"Лёгкие удары пятками полезны для костей. Работа икроножных мышц помогает оттоку венозной крови и лимфы. Того, что это «выводит токсины», не доказано: лимфу разгоняет любое движение и глубокое дыхание."},
+  {n:"Утренний свет",o:"на улице, без солнцезащитных очков",m:"10–20 мин · первый час после подъёма",g:["sleep","energy"],ev:"B",
+   how:"Выйди на улицу или встань у открытого окна. В пасмурный день нужно дольше, около 20–30 минут.",
+   proof:"Яркий свет утром сдвигает циркадные ритмы раньше: проще засыпать вечером и просыпаться утром, днём меньше сонливости."},
+  {n:"Циклический вздох",o:"дыхательная практика",m:"5 мин · утром или при стрессе",g:["sleep","brain"],ev:"B",
+   how:"Два вдоха носом подряд (второй короткий, добирающий), затем длинный медленный выдох ртом. Повторять 5 минут.",
+   proof:"В исследовании Стэнфорда (2023) 5 минут в день за месяц улучшили настроение и снизили тревожность сильнее, чем такая же по времени медитация."}
+ ]},
+ {h:"Основа",p:"То, что сильнее любых добавок влияет на продолжительность и качество жизни.",items:[
+  {n:"Силовые",o:"с весом или собственным телом",m:"2–3 раза в неделю · 30–45 мин",g:["long","bones"],ev:"A",
+   how:"Базовые движения: присед, тяга, жим, подтягивания, выпады. Подходы до состояния, когда остаётся 1–3 повтора до отказа. Вес постепенно растёт.",
+   proof:"30–60 минут силовых в неделю связаны с риском смерти на 10–20% ниже. Сохраняют мышцы и плотность костей с возрастом, улучшают чувствительность к инсулину."},
+  {n:"Кардио в зоне 2",o:"бег, велосипед, быстрая ходьба",m:"150–300 мин в неделю",g:["long","heart","energy"],ev:"A",
+   how:"Темп, при котором можешь говорить фразами, но не петь. Удобно разбить на 3–5 тренировок по 40–60 минут.",
+   proof:"Уровень аэробной формы (VO2max) один из сильнейших предикторов продолжительности жизни. Аэробная нагрузка снижает давление, риск диабета и болезней сердца."},
+  {n:"Интервалы 4×4",o:"норвежский протокол",m:"1 раз в неделю · 25–30 мин",g:["heart","long"],ev:"A",
+   how:"Разминка 10 минут, затем 4 отрезка по 4 минуты на 85–95% максимального пульса с 3 минутами лёгкого темпа между ними.",
+   proof:"Поднимает VO2max быстрее, чем любой другой вид нагрузки. В норвежском исследовании пожилых людей у тех, кто так тренировался, смертность была ниже."},
+  {n:"Прогулка после еды",o:"самая простая привычка",m:"10–15 мин · после основных приёмов пищи",g:["energy","heart"],ev:"A",
+   how:"Просто пройдись в спокойном темпе сразу после еды. Даже 2–5 минут уже дают эффект.",
+   proof:"Снижает скачок сахара и инсулина после еды. Это хорошо показано в метаанализах."}
+ ]},
+ {h:"Восстановление",p:"Помогают телу восстанавливаться и сохранять подвижность.",items:[
+  {n:"Тайцзи",o:"太极拳",m:"2–3 раза в неделю · 30–60 мин",g:["bones","sleep","heart"],ev:"A",
+   how:"Медленные непрерывные движения с перемещением веса с ноги на ногу. Лучше начать с группы или видео с упрощённой формой из 24 движений.",
+   proof:"Снижает риск падений у пожилых, уменьшает боль при артрозе колена, снижает давление и улучшает сон."},
+  {n:"Сауна",o:"финская, 80–90 °C",m:"2–4 раза в неделю · 15–20 мин",g:["heart","long"],ev:"B",
+   how:"1–3 захода по 10–20 минут. После выпей воды, при сильном потоотделении добавь соли.",
+   proof:"В большом финском наблюдении у тех, кто ходил в сауну 4–7 раз в неделю, риск смерти от болезней сердца был заметно ниже. Это наблюдение, а не эксперимент."},
+  {n:"Холод",o:"холодный душ или купание",m:"1–3 мин · по желанию",g:["energy","brain"],ev:"C",
+   how:"Вода 10–15 °C, начинай с 30 секунд. Не сразу после силовой тренировки.",
+   proof:"Бодрит и поднимает настроение на несколько часов за счёт выброса норадреналина и дофамина. Данных о пользе для продолжительности жизни нет."},
+  {n:"Мобильность",o:"растяжка суставов и мышц",m:"10 мин в день",g:["bones"],ev:"B",
+   how:"Круговые движения в суставах, глубокий присед, растяжка бёдер и грудного отдела. Хорошо после тренировки или вечером.",
+   proof:"Улучшает подвижность суставов. Для профилактики травм силовые работают лучше, чем одна растяжка."}
+ ]}
+];
+const NU=[
+ ["Ледяная ванна сразу после силовой снижает прирост мышц и силы. Делай холод в другие дни или хотя бы через несколько часов.","B"],
+ ["Большие дозы антиоксидантов (витамин C 1000 мг и E 400 МЕ каждый день) могут ослаблять пользу от тренировок. Не пей их прямо перед тренировкой.","B"],
+ ["Креатин 3–5 г в день усиливает прирост силы и мышц от силовых.","A"],
+ ["Кофеин 3 мг на кг веса за 30–60 минут до тренировки улучшает силу и выносливость. Не позже чем за 8 часов до сна.","A"],
+ ["Тяжёлые интервалы поздно вечером у некоторых ухудшают сон. Лучше ставить их на утро или день.","C"],
+ ["После сауны и долгой тренировки восполни воду и соль, особенно летом.","B"]
+];
+document.getElementById("train").innerHTML=`<div class="view">`+TR.map(gr=>`<section class="tgroup"><div><h2>${gr.h}</h2><p style="color:var(--muted);margin-top:4px;max-width:70ch">${gr.p}</p></div><div class="cards">${gr.items.map(it=>`
+  <article class="card" style="--stripe:linear-gradient(90deg,${it.g.map(k=>`var(${G[k].c})`).join(",")}${it.g.length===1?`,var(${G[it.g[0]].c})`:""})">
+    <div class="top"><div><h3>${it.n}</h3><span class="orig">${it.o}</span></div><span class="ev">${it.ev}</span></div>
+    <span class="meta">${it.m}</span>
+    ${tags(it.g)}
+    <div><div class="lbl">Как делать</div><p>${it.how}</p></div>
+    <div><div class="lbl">Что доказано</div><p>${it.proof}</p></div>
+    ${it.steps?`<details><summary>Все 8 движений</summary><ol>${it.steps.map(([a,b])=>`<li>${a}. <span>${b}.</span></li>`).join("")}</ol></details>`:""}
+  </article>`).join("")}</div></section>`).join("")+
+  `<section class="box"><h2>Тренировки и добавки</h2><ul class="nuance">${NU.map(([t,e])=>`<li><span>${t}</span><span class="ev">${e}</span></li>`).join("")}</ul></section></div>`;
+
+/* ---------- tabs ---------- */
+function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow===W&&oh===H)return;
+  N.forEach(n=>{n.x=n.x*W/ow;n.y=n.y*H/oh});buildNodes();applyView();render();heat(.2)}
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
+const TABS=["graph","plan","train"];
+function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
+TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>showTab(t)));
+if(location.hash==="#plan")showTab("plan");
+if(location.hash==="#train")showTab("train");
+
+applyView();renderNote();
+</script>
+
+</body>
+</html>
