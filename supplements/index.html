@@ -53,8 +53,6 @@ button{font:inherit}
 .chip[aria-pressed="true"] .ln.syn{border-color:var(--bg)}
 .chk{display:inline-flex;gap:7px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;margin-left:6px}
 
-.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
-@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
 .stage{background:radial-gradient(ellipse at 50% 45%,#121319 0%,var(--panel) 55%,var(--bg) 100%);border:1px solid var(--faint);border-radius:14px;min-width:0;overflow:hidden}
 svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-action:pan-y}
 .edge{stroke-linecap:round;transition:opacity .25s}
@@ -79,7 +77,21 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .dim{opacity:.1}
 .hide{display:none}
 
-.note{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:14px;align-content:start;min-width:0}
+.stage{position:relative}
+.maphelp{position:absolute;top:12px;left:12px;background:var(--panel)}
+.note{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px;display:grid;gap:14px;align-content:start;min-width:0;
+  position:absolute;top:12px;right:12px;bottom:12px;width:min(400px,calc(100% - 24px));overflow:auto;overscroll-behavior:contain;z-index:3;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);transform:translateX(calc(100% + 24px));visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s .3s}
+.note.open{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.nclose{all:unset;cursor:pointer;position:sticky;top:0;justify-self:end;margin:-6px -6px -40px 0;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--raise);color:var(--ink);z-index:1}
+.nclose:hover{background:var(--faint)}
+.nclose:focus-visible{outline:2px solid var(--ink)}
+@media (max-width:900px){
+  .note{position:fixed;top:auto;left:0;right:0;bottom:0;width:auto;max-height:72vh;border-radius:18px 18px 0 0;
+    padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
+    transform:translateY(105%)}
+  .note.open{transform:none}
+}
 .kind{font-size:12.5px;color:var(--muted)}
 .tags{display:flex;flex-wrap:wrap;gap:6px}
 .tag{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid;white-space:nowrap}
@@ -173,7 +185,7 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .clash li{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--faint);list-style:none}
 .clash ul{margin:0;padding:0}
 .clash .t{color:var(--muted);font-size:13.5px}
-@media (min-width:901px){.note{overflow:auto;overscroll-behavior:contain;box-sizing:border-box}}
+
 .note .add{justify-self:start}
 .nhead{display:grid;gap:2px}
 .ns{display:grid;gap:8px}
@@ -328,8 +340,9 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
       </div>
     </div>
 
-    <div class="main">
-      <div class="stage" id="stage"><svg id="g" aria-label="Граф взаимодействий добавок"></svg></div>
+    <div class="stage" id="stage">
+      <svg id="g" aria-label="Граф взаимодействий добавок"></svg>
+      <button class="chip sm maphelp" id="mapHelp" type="button">Как читать карту</button>
       <aside class="note" id="note" aria-live="polite"></aside>
     </div>
 
@@ -661,7 +674,7 @@ const byId=Object.fromEntries(N.map(n=>[n.id,n]));
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
-const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",noEdges:false};
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",noEdges:false,help:false,panelOff:false};
 const AL={D3:"vitamin d холекальциферол витамин д",K2:"mk-7 mk7 менахинон витамин к",A:"retinol ретинол бета-каротин",E:"tocopherol токоферол",C:"ascorbic аскорбиновая кислота",B1:"thiamine тиамин бенфотиамин",B6:"pyridoxine пиридоксин p5p",B9:"folate folic фолиевая метилфолат",B12:"cobalamin кобаламин метилкобаламин",Ca:"calcium",Mg:"magnesium глицинат цитрат",Zn:"zinc",Cu:"copper",Fe:"iron ферритин",Se:"selenium",I:"iodine",O3:"omega fish oil рыбий жир epa dha омега",Cur:"curcumin turmeric куркума",Pip:"piperine bioperine чёрный перец",Q10:"coq10 убихинон убихинол коэнзим",Cre:"creatine",Gly:"glycine",NAD:"nmn nr никотинамид рибозид",Api:"apigenin ромашка",NAC:"nac n-acetylcysteine ацетилцистеин глутатион",Tau:"taurine",LT:"l-theanine theanine теанин",Ash:"ashwagandha ksm-66",Cof:"coffee caffeine tea кофеин чай",Mel:"melatonin",Gar:"garlic aged kyolic чеснок",Beet:"beet beetroot nitrate нитраты свекла свёкла",Hib:"hibiscus каркаде",Rho:"rhodiola",Saf:"saffron affron",Bac:"bacopa",BA:"beta-alanine бета аланин",Bic:"bicarbonate сода",Prot:"protein whey протеин белок",Psy:"psyllium клетчатка",Pro:"probiotic пробиотик"};
 const norm=x=>x.toLowerCase().replace(/ё/g,"е");
 N.forEach(n=>{n.hay=norm([n.name,n.s,n.id,AL[n.id]||""].join(" "));n.words=n.hay.split(/[\s()+,.\-]+/).filter(Boolean)});
@@ -681,15 +694,13 @@ const goalRow=document.getElementById("goalRow");
 goalRow.insertAdjacentHTML("beforeend",`<button class="chip goal" id="goal-all" data-g="" aria-pressed="true">Все</button>`+
   Object.entries(G).map(([k,g])=>`<button class="chip goal" id="goal-${k}" data-g="${k}" aria-pressed="false"><span class="gdot" style="background:var(${g.c})"></span>${g.n}</button>`).join(""));
 goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)return;
-  state.goal=b.dataset.g||null;state.sel=null;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
+  state.goal=b.dataset.g||null;state.sel=null;state.help=false;state.panelOff=false;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
 
 /* ---------- graph ---------- */
 function measure(){
   const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
-  W=w;H=w<600?Math.round(Math.max(900,w*2.35)):Math.round(Math.min(1000,Math.max(700,w*1.05)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
+  W=w;H=w<600?Math.round(Math.max(900,w*2.35)):Math.round(Math.min(960,Math.max(700,w*.78)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";
-  // side panel matches the graph height on desktop; long content scrolls inside it
-  const nt=document.getElementById("note");if(nt)nt.style.height=matchMedia("(min-width:901px)").matches?(H+2)+"px":"";
   return [ow,oh];
 }
 measure();
@@ -775,7 +786,7 @@ svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",e
 // pointer capture retargets the click after a node tap to the svg; ignore that one
 svg.addEventListener("click",ev=>{if(ev.target===svg&&performance.now()-lastNodeUp>400)select(null)});
 
-function select(s){state.sel=s;applyView();renderNote();note.scrollTop=0}
+function select(s){state.sel=s;if(s)state.help=false;applyView();renderNote();note.scrollTop=0}
 function focusSets(){
   const M=matches();
   let s=state.sel||(state.hover?{type:"node",id:state.hover}:null);
@@ -866,6 +877,10 @@ function renderNote(){
       <ul class="list"><li><button data-n="${e.a}"><span></span><span>Все связи: <b>${esc(byId[e.a].name)}</b></span></button></li>
       <li><button data-n="${e.b}"><span></span><span>Все связи: <b>${esc(byId[e.b].name)}</b></span></button></li></ul>`;
   }
+  note.insertAdjacentHTML("afterbegin",'<button class="nclose" id="nclose" type="button" aria-label="Закрыть">✕</button>');
+  const open=!!(state.sel||state.help||((matches()||state.goal)&&!state.panelOff));
+  note.classList.toggle("open",open);
+  note.querySelector("#nclose").addEventListener("click",()=>{state.sel=null;state.help=false;state.panelOff=true;applyView();renderNote()});
   note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
   note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
   note.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>toggleItem(b.dataset.toggle)));
@@ -1317,12 +1332,15 @@ if(location.hash==="#train")showTab("train");
 
 const qIn=document.getElementById("q"),qCount=document.getElementById("qcount");
 const qClear=document.getElementById("qclear");
-function setQ(v){qIn.value=v;state.q=v;state.sel=null;const M=matches();qCount.textContent=M?`${M.size}`:"";qClear.hidden=!v;applyView();renderNote()}
+function setQ(v){qIn.value=v;state.q=v;state.sel=null;state.help=false;state.panelOff=false;const M=matches();qCount.textContent=M?`${M.size}`:"";qClear.hidden=!v;applyView();renderNote()}
 qIn.addEventListener("input",()=>setQ(qIn.value));
 qClear.addEventListener("click",()=>{setQ("");qIn.focus()});
 document.getElementById("r-off").addEventListener("click",ev=>{state.noEdges=!state.noEdges;ev.currentTarget.setAttribute("aria-pressed",state.noEdges);ev.currentTarget.textContent=state.noEdges?"Показать связи":"Скрыть связи";applyView()});
 qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&&M.size){ev.preventDefault();select({type:"node",id:[...M][0]})}}
   if(ev.key==="Escape")setQ("")});
+
+document.getElementById("mapHelp").addEventListener("click",()=>{state.help=!state.help||!!state.sel;state.sel=null;state.panelOff=false;applyView();renderNote()});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&note.classList.contains("open")&&document.activeElement!==qIn){state.sel=null;state.help=false;state.panelOff=true;applyView();renderNote()}});
 
 applyView();renderNote();
 </script>
