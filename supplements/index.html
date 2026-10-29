@@ -20,7 +20,18 @@
   --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
-.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 56px;display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:25;background:rgba(5,5,6,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--faint)}
+.tb{max-width:1320px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;flex-wrap:wrap;gap:10px 24px}
+.logo{font-weight:800;font-size:20px;letter-spacing:-.03em;white-space:nowrap}
+.logo em{font-style:normal;background:linear-gradient(90deg,var(--g-long),var(--g-heart) 45%,var(--g-infl));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tb .tabs{margin-left:auto}
+.tab{min-height:24px}
+.tl-short{display:none}
+@media (max-width:700px){.tb .tabs{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.tb .tab{padding:8px 4px;text-align:center;font-size:14px}.tl-long{display:none}.tl-short{display:inline}}
+#stage,#tdet,#pbody,.view{scroll-margin-top:84px}
+@media (max-width:700px){#stage,#tdet,#pbody,.view{scroll-margin-top:124px}}
+.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px;display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
 h1{font-weight:800;font-size:clamp(30px,5vw,52px);line-height:1;margin:0;letter-spacing:-.035em}
 h1 em{font-style:normal;background:linear-gradient(90deg,var(--g-long),var(--g-heart) 45%,var(--g-infl));-webkit-background-clip:text;background-clip:text;color:transparent}
 .sub{margin:10px 0 0;color:var(--muted);max-width:62ch}
@@ -28,7 +39,7 @@ h2{font-size:19px;font-weight:700;margin:0;line-height:1.25;letter-spacing:-.01e
 h3{font-size:16px;font-weight:700;margin:0;line-height:1.3}
 p{margin:0}
 button{font:inherit}
-.back{display:inline-block;margin-bottom:14px;color:var(--muted);text-decoration:none;font:500 13px var(--f-mono)}
+.back{color:var(--muted);text-decoration:none;font:500 18px var(--f-mono);padding:4px 6px;margin-left:-6px}
 .back:hover{color:var(--ink)}
 [hidden]{display:none!important}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -269,6 +280,25 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 .legendl li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:center}
 .legendl .ln{width:22px}
 .legendl .thick{width:22px;height:0;border-top:3px solid var(--syn);box-shadow:0 5px 0 -1px var(--muted)}
+.top3{display:grid;gap:10px}
+.top3 ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.top3 ol{grid-template-columns:minmax(0,1fr)}}
+.pitem{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;padding:12px 0;border-top:1px solid var(--faint);align-items:start}
+.pitem.lead3{background:var(--panel);border:1px solid var(--ink);border-radius:14px;padding:16px}
+.rk{font:800 18px/1.25 var(--f-body);color:#4A4D55}
+.rk.top{color:var(--ink)}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start}
+.grp{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:16px 16px 6px;display:grid;gap:6px;position:relative;overflow:hidden}
+.grp::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--gc)}
+.grp h3{display:flex;align-items:center;gap:8px}
+.grp .cnt{margin-left:auto;font:500 12px var(--f-mono);color:var(--muted)}
+.grp ol{list-style:none;margin:0;padding:0}
+.grp .pitem:first-child{border-top:0}
+.tsteps .why{display:block;color:var(--ink);font-size:13.5px;margin-top:3px;padding-left:10px;border-left:2px solid var(--faint)}
+.learn{display:grid;gap:10px;border-top:1px solid var(--faint);padding-top:16px}
+.learn .lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.learn article{background:var(--raise);border-radius:12px;padding:14px;display:grid;gap:6px}
+.learn article p{color:var(--muted);font-size:14px}
 .plan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 @media (max-width:960px){.plan{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:540px){.plan{grid-template-columns:minmax(0,1fr)}}
@@ -307,20 +337,17 @@ svg#g{display:block;width:100%;user-select:none;-webkit-user-select:none;touch-a
 <style>*{box-sizing:border-box}html,body{margin:0}img{max-width:100%}</style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <a class="back" href="../">← все анимации</a>
-    <h1>Карта <em>добавок</em></h1>
-    <p class="sub">Что с чем принимать, что разносить по времени и для чего это всё вообще пьют. Цветное кольцо вокруг добавки показывает цели, линии показывают связи.</p>
-  </header>
-
-  <div class="tabs" role="tablist">
+<header class="topbar"><div class="tb">
+  <a class="back" href="../" aria-label="Все анимации" title="Все анимации">←</a><span class="logo">Карта <em>добавок</em></span>
+  <nav class="tabs" role="tablist">
     <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Связи</button>
     <button class="tab" id="tab-prob" role="tab" aria-selected="false" aria-controls="view-prob">Проблемы</button>
-    <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan">Когда принимать</button>
+    <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan"><span class="tl-long">Когда принимать</span><span class="tl-short">Приём</span></button>
     <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train">Тренировки</button>
-  </div>
+  </nav>
+</div></header>
 
+<div class="wrap">
   <!-- GRAPH -->
   <section class="view" id="view-graph" role="tabpanel" aria-labelledby="tab-graph">
     <div class="filters">
@@ -1109,6 +1136,37 @@ const TRX={
   pair:[["Mg","Иногда помогает при судорогах и зажатых мышцах."],["O3","Немного снижает боль в суставах."]],
   tips:["Лучше после тренировки или вечером, когда мышцы тёплые.","Не тяни до боли: лёгкое натяжение и ровное дыхание."]}
 };
+// Deeper explanations for the training detail view
+TRX["Силовые"].steps=[
+ ["Присед","гоблет-присед или со штангой, 3 × 6–12","Квадрицепсы, ягодицы, приводящие мышцы бедра. Главное упражнение для силы ног и умения легко вставать — того, что с возрастом теряется первым."],
+ ["Тяга","становая или румынская, 3 × 6–10","Ягодицы, задняя поверхность бедра, разгибатели спины и хват. Учит поднимать тяжести с пола без травм спины."],
+ ["Жим","лёжа, отжимания или над головой, 3 × 6–12","Грудь, плечи, трицепсы. Сила толкать и здоровые плечевые суставы."],
+ ["Подтягивания","или тяга верхнего блока, 3 подхода с 1–2 повторами в запасе","Широчайшие мышцы спины, бицепсы, хват. Держат осанку и плечи."],
+ ["Выпады","по 8–10 на ногу, 2–3 подхода","Каждая нога отдельно и мышцы-стабилизаторы. Равновесие и защита от падений."],
+ ["Фермерская прогулка","гантели в руках, 2–3 × 30–40 м","Хват, мышцы корпуса, трапеции. Самый простой способ прокачать хват и устойчивость корпуса."]];
+TRX["Силовые"].learn=[
+ ["Почему ноги важнее всего","Ноги и ягодицы — самые большие мышцы тела. Сила ног и умение встать с пола без опоры напрямую связаны с продолжительностью жизни: в исследовании с тестом «сесть-встать» люди с худшим результатом умирали в несколько раз чаще, чем с лучшим."],
+ ["Сила хвата — маркер здоровья","В исследовании PURE на 140 тысячах человек каждые 5 кг слабее хват означали риск смерти на 16% выше. Хват отражает общую силу, поэтому тяги, подтягивания и переноска тяжестей полезны далеко не только для спины."],
+ ["Мышцы — орган обмена веществ","Мышцы забирают большую часть сахара из крови после еды. Чем больше мышц, тем лучше чувствительность к инсулину и ниже риск диабета 2 типа."],
+ ["Сколько нужно","ВОЗ советует минимум 2 силовые тренировки в неделю на все крупные мышцы. Для роста мышц ориентир — 10 и больше рабочих подходов на каждую группу мышц в неделю."]];
+TRX["Кардио в зоне 2"].learn=[
+ ["Как посчитать свою зону 2","Максимальный пульс примерно равен 208 − 0,7 × возраст: в 30 лет это около 187. Зона 2 — примерно 60–70% от максимума, то есть 112–131 удар в минуту. Формулы дают разброс, поэтому проверяй разговорным тестом: говоришь полными фразами, но петь уже не получается."],
+ ["Что такое VO2max","Сколько кислорода организм может использовать за минуту на килограмм веса (мл/кг/мин). Это главный показатель выносливости. В исследовании на 120 тысячах человек люди с самым низким VO2max умирали примерно в 5 раз чаще, чем с самым высоким."],
+ ["Как узнать свой VO2max","Проще всего — оценка в спортивных часах, ошибка около 10%. Тест Купера: пробеги как можно дальше за 12 минут, VO2max ≈ (метры − 505) / 44,7. Например, 2400 м дают около 42. Точнее всего — лабораторный тест с маской."],
+ ["Ориентиры для мужчин 30–39 лет","Примерно: ниже 35 — низкий, 35–42 — средний, 42–48 — хороший, выше 48 — отличный. С каждым десятилетием VO2max падает примерно на 10%, тренировки сильно замедляют это падение."]];
+TRX["Интервалы 4×4"].learn=[
+ ["Как найти 85–95% пульса","При максимуме 187 это 159–178 ударов в минуту. На практике — темп, в котором можешь сказать только 2–3 слова. Пульс догоняет нагрузку за 1–2 минуты, поэтому смотри на него во второй половине отрезка."],
+ ["Почему именно 4 минуты","Этого хватает, чтобы сердце несколько минут работало у максимума объёма крови за удар. Именно это растит VO2max быстрее, чем короткие спринты или длинное лёгкое кардио."]];
+TRX["Ба Дуань Цзинь"].learn=[
+ ["Что такое цигун","Китайская система медленных движений, связанных с дыханием. Ба Дуань Цзинь — один из самых изученных комплексов: десятки рандомизированных исследований, в основном в Китае."],
+ ["Почему работает","Это сочетание растяжки, лёгкой силовой работы в стойке, баланса и медленного дыхания. Медленный выдох успокаивает нервную систему, отсюда эффект на сон, давление и тревожность."]];
+TRX["Утренний свет"].learn=[["Как это работает","Яркий свет попадает на особые клетки сетчатки, и они сообщают внутренним часам, что начался день. Через 14–16 часов организм начинает выделять мелатонин. Чем раньше и ярче утренний свет, тем раньше вечером захочется спать."]];
+TRX["Прогулка после еды"].learn=[["Почему работает","Работающие мышцы забирают сахар из крови даже без участия инсулина. Поэтому короткая ходьба сразу после еды срезает пик сахара и сонливость после обеда."]];
+TRX["Тайцзи"].learn=[["Почему снижает падения","Медленный перенос веса тренирует равновесие и силу ног именно в тех положениях, где люди теряют баланс. У пожилых число падений снижается примерно на 20–40%."]];
+TRX["Сауна"].learn=[["Почему работает","Жар заставляет сердце биться чаще, сосуды расширяются, похоже на лёгкую кардиотренировку. Ещё клетки выделяют белки теплового шока, которые помогают чинить повреждённые белки."]];
+TRX["Холод"].learn=[["Почему бодрит","Холодная вода поднимает норадреналин в несколько раз, а дофамин примерно в 2,5 раза, и эффект держится пару часов. Отсюда бодрость и хорошее настроение."]];
+TRX["Мобильность"].learn=[["Тест «сесть-встать»","Сядь на пол со скрещёнными ногами и встань, стараясь не опираться руками и коленями. 10 баллов — без опоры, за каждую опору минус балл. Результат ниже 8 связан с более высоким риском смерти, а мобильность и силовые его улучшают."]];
+TRX["Циклический вздох"].learn=[["Почему работает","При вдохе сердце немного ускоряется, при выдохе замедляется. Длинный выдох включает систему «отдыха и восстановления», а двойной вдох лучше раскрывает лёгкие и сбрасывает лишний углекислый газ."]];
 let trSel=null;
 const trAll=()=>TR.flatMap(g=>g.items);
 const stripe=it=>`linear-gradient(90deg,${it.g.map(k=>`var(${G[k].c})`).join(",")}${it.g.length===1?`,var(${G[it.g[0]].c})`:""})`;
@@ -1117,13 +1175,13 @@ function trDetail(it){const x=TRX[it.n]||{},steps=it.steps||x.steps||[];
    <div class="tdet-h"><div><span class="orig">${it.o}</span><h2 class="big">${it.n}</h2><span class="meta">${it.m}</span></div><button class="chip sm" id="trClose">Закрыть ✕</button></div>
    ${tags(it.g)}
    <div class="tdet-g">
-    <div class="col"><h4>Как делать</h4><p>${it.how}</p>${steps.length?`<ol class="tsteps">${steps.map(([a,b])=>`<li><b>${a}</b><span>${b}</span></li>`).join("")}</ol>`:""}</div>
+    <div class="col"><h4>Как делать</h4><p>${it.how}</p>${steps.length?`<ol class="tsteps">${steps.map(([a,b,c])=>`<li><b>${a}</b><span>${b}</span>${c?`<span class="why">${c}</span>`:""}</li>`).join("")}</ol>`:""}</div>
     <div class="col"><h4>Что доказано <span class="ev">${it.ev}</span></h4><p>${it.proof}</p>
      ${x.pair&&x.pair.length?`<h4>С чем сочетать</h4><ul class="tpair">${x.pair.map(([id,w])=>`<li><button data-n="${id}">${pill(byId[id])}<span><b>${esc(byId[id].name)}</b><span class="t">${w}</span></span></button></li>`).join("")}</ul>`:""}
      ${x.tips&&x.tips.length?`<h4>Нюансы</h4><ul class="ttips">${x.tips.map(t=>`<li>${t}</li>`).join("")}</ul>`:""}
      ${x.caution?`<div class="tcaution"><b>Осторожно</b><span>${x.caution}</span></div>`:""}
     </div>
-   </div></section>`;}
+   </div>${x.learn&&x.learn.length?`<div class="learn"><h4>Разберёмся</h4><div class="lg">${x.learn.map(([a,b])=>`<article><b>${a}</b><p>${b}</p></article>`).join("")}</div></div>`:""}</section>`;}
 function renderTrain(){
   const it=trSel&&trAll().find(i=>i.n===trSel);
   document.getElementById("train").innerHTML=`<div class="view">${it?trDetail(it):""}`+TR.map(gr=>`<section class="tgroup"><div><h2>${gr.h}</h2><p style="color:var(--muted);margin-top:4px;max-width:70ch">${gr.p}</p></div><div class="cards">${gr.items.map(it=>`
@@ -1296,17 +1354,19 @@ PROB.forEach(p=>{p.missing=p.missing.filter(([t,txt])=>{const m=MISS2N[t];if(!m)
   const at=p.items.findIndex(x=>x[0]==="supp"&&x[3]>m[1]); // keep supplements ordered by evidence
   at<0?p.items.push(item):p.items.splice(at,0,item);return false})});
 let probSel="pressure",probType="all";
+const PG=[["life","Образ жизни и питание",["life","food","med"]],["train","Тренировки",["train"]],["supp","Добавки",["supp"]]];
+function probItem(x,i,big){const [t,title,txt,ev,ref]=x;
+  return `<li class="pitem${big?" lead3":""}"><span class="rk${i<3?" top":""}">${i+1}</span><div class="sc">${big||t==="food"||t==="med"?`<span class="ptype" style="color:var(--pt-${t})">${PT[t]}</span>`:""}<b>${title}</b><span class="t">${txt}</span>${ref?`<button class="go" data-ref="${ref}">${ref[0]==="n"?"Открыть на карте →":"К тренировке →"}</button>`:""}</div><span class="ev">${ev}</span></li>`}
 function renderProb(){
   document.getElementById("plist").innerHTML=PROB.map(p=>`<button class="pbtn" data-pr="${p.id}" aria-pressed="${p.id===probSel}">${p.t}<span>${p.items.length}</span></button>`).join("");
-  const p=PROB.find(x=>x.id===probSel),types=[...new Set(p.items.map(x=>x[0]))];
-  if(probType!=="all"&&!types.includes(probType))probType="all";
-  const list=p.items.map((x,i)=>({x,i})).filter(o=>probType==="all"||o.x[0]===probType);
+  const p=PROB.find(x=>x.id===probSel),idx=p.items.map((x,i)=>({x,i}));
   document.getElementById("pbody").innerHTML=`<div><h2 class="big">${p.t}</h2><p class="lead">${p.intro}</p></div>
+    <section class="top3"><h3>Главное — начни с этого</h3><ol>${idx.slice(0,3).map(o=>probItem(o.x,o.i,true)).join("")}</ol></section>
     <div class="first"><span class="lbl">Сначала проверь</span><p>${p.check}</p></div>
     ${p.nuance?`<div class="box nu"><h3>${p.nuance.t}</h3><ul>${p.nuance.rows.map(([a,b],i)=>`<li${i===p.nuance.rows.length-1?' class="alarm"':""}><b>${a}</b><span>${b}</span></li>`).join("")}</ul></div>`:""}
-    <div class="frow" role="group" aria-label="Тип меры"><button class="chip sm" data-pt="all" aria-pressed="${probType==="all"}">Все</button>${types.map(t=>`<button class="chip sm" data-pt="${t}" aria-pressed="${probType===t}"><span class="gdot" style="background:var(--pt-${t})"></span>${PT[t]}</button>`).join("")}</div>
-    <div><h3 style="margin-bottom:8px">Что делать, от самого полезного</h3>
-    <ol class="steps">${list.map(({x:[t,title,txt,ev,ref],i})=>`<li><span class="num${i<3?" top":""}">${i+1}</span><div class="sc"><span class="ptype" style="color:var(--pt-${t})">${PT[t]}</span><b>${title}</b><span class="t">${txt}</span>${ref?`<button class="go" data-ref="${ref}">${ref[0]==="n"?"Открыть на карте →":"К тренировке →"}</button>`:""}</div><span class="ev">${ev}</span></li>`).join("")}</ol></div>
+    <div><h3 style="margin-bottom:4px">Все меры по группам</h3><p class="kind" style="margin-bottom:12px">Номер — место по пользе среди всех мер.</p>
+    <div class="groups">${PG.map(([k,name,types])=>{const its=idx.filter(o=>types.includes(o.x[0]));if(!its.length)return"";
+      return `<section class="grp" style="--gc:var(--pt-${k})"><h3><span class="gdot" style="background:var(--pt-${k})"></span>${name}<span class="cnt">${its.length}</span></h3><ol>${its.map(o=>probItem(o.x,o.i)).join("")}</ol></section>`}).join("")}</div></div>
     ${p.missing.length?`<div class="box miss"><h3>Чего пока нет на карте</h3><ul>${p.missing.map(([a,b])=>`<li><b>${a}</b><span>${b}</span></li>`).join("")}</ul></div>`:""}`;
 }
 document.getElementById("plist").addEventListener("click",ev=>{const b=ev.target.closest("[data-pr]");if(!b)return;probSel=b.dataset.pr;probType="all";renderProb();
@@ -1325,7 +1385,7 @@ function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow==
 let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
 const TABS=["graph","prob","plan","train"];
 function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
-TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>showTab(t)));
+TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>{showTab(t);window.scrollTo({top:0})}));
 if(location.hash==="#plan")showTab("plan");
 if(location.hash==="#problems")showTab("prob");
 if(location.hash==="#train")showTab("train");
