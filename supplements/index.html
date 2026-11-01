@@ -28,7 +28,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tb .tabs{margin-left:auto}
 .tab{min-height:24px}
 .tl-short{display:none}
-@media (max-width:700px){.tb .tabs{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.tb .tab{padding:8px 4px;text-align:center;font-size:14px}.tl-long{display:none}.tl-short{display:inline}}
+@media (max-width:700px){.tb .tabs{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.tb .tab{padding:8px 2px;text-align:center;font-size:13px}.tl-long{display:none}.tl-short{display:inline}}
 #stage,#tdet,#pbody,.view{scroll-margin-top:84px}
 @media (max-width:700px){#stage,#tdet,#pbody,.view{scroll-margin-top:124px}}
 .wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px;display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
@@ -361,6 +361,16 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 .foot{font-size:13px;color:var(--muted);max-width:80ch;display:grid;gap:6px}
 @media (prefers-reduced-motion:reduce){.edge.syn,.node .in{animation:none}}
+
+/* Notes inbox: raw entries first, sorted into the map later */
+.notes-intro{color:var(--muted);margin:0 0 18px}
+.nb{background:var(--panel);border:1px solid var(--faint);border-radius:12px;padding:14px 16px;margin:0 0 12px}
+.nb-h{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin:0 0 8px}
+.nb-h b{font-size:16px}
+.nb-d{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.nb-s{font-family:var(--f-mono);font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.nb-s.new{color:var(--warn)}.nb-s.done{color:var(--good)}
+.nb ul{margin:0;padding-left:18px}.nb li{margin:4px 0}
 </style>
 <style>*{box-sizing:border-box}html,body{margin:0}img{max-width:100%}</style>
 </head>
@@ -371,7 +381,8 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
     <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Связи</button>
     <button class="tab" id="tab-prob" role="tab" aria-selected="false" aria-controls="view-prob">Проблемы</button>
     <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan"><span class="tl-long">Когда принимать</span><span class="tl-short">Приём</span></button>
-    <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train">Тренировки</button>
+    <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train"><span class="tl-long">Тренировки</span><span class="tl-short">Спорт</span></button>
+    <button class="tab" id="tab-notes" role="tab" aria-selected="false" aria-controls="view-notes">Записи</button>
   </nav>
 </div></header>
 
@@ -462,6 +473,10 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   <!-- TRAINING -->
   <section class="view" id="view-train" role="tabpanel" aria-labelledby="tab-train" hidden>
     <div id="train"></div>
+  </section>
+
+  <section class="view" id="view-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
+    <div id="notes"></div>
   </section>
 
   <div class="foot">
@@ -1587,7 +1602,7 @@ renderProb();
 function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow===W&&oh===H)return;
   N.forEach(n=>{n.x=n.x*W/ow;n.y=n.y*H/oh});buildNodes();applyView();render();heat(.2)}
 let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
-const TABS=["graph","prob","plan","train"];
+const TABS=["graph","prob","plan","train","notes"];
 function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
 TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>{showTab(t);window.scrollTo({top:0})}));
 if(location.hash==="#plan")showTab("plan");
@@ -1609,5 +1624,25 @@ document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&note.classList.co
 applyView();renderNote();
 </script>
 
+
+<script>
+// Notes inbox. Add new entries at the top: {d:"YYYY-MM-DD", t:"Тема", st:"new"|"done", where:"куда внесено", pts:["..."]}
+// Kept in its own script so a mistake here can't break the rest of the page.
+const NOTES=[
+ {d:"2026-11-01",t:"Полифенолы и жир",st:"done",where:"Карта: зелёный чай, какао, ресвератрол. Проблемы → Снижение веса",
+  pts:["Полифенолы — растительные вещества: катехины чая, хлорогеновая кислота кофе, куркумин, ресвератрол, антоцианы ягод, флаванолы какао.",
+   "«Убирают жир» — преувеличение. На мышах эффект есть, у людей небольшой: в лучшем случае минус 1–2 кг за несколько месяцев и только на фоне дефицита калорий.",
+   "Зелёный чай + кофеин: лучше всего изучены, примерно минус 1–1,5 кг за 2–3 месяца. EGCG не больше 300–400 мг в день, с едой — большие дозы натощак вредят печени.",
+   "Куркумин: минус 1–2 кг в метаанализах, в основном при метаболическом синдроме. Только усваиваемая форма или с пиперином.",
+   "Ресвератрол: эффект на вес на грани шума. Пиперин улучшает его всасывание, но брать ради похудения смысла нет.",
+   "Какао: для сосудов и давления, на вес почти не влияет. Брать натуральный порошок без подщелачивания (non-alkalized / raw cacao), 1–2 ст. ложки в день. Выбор на iHerb: NOW Raw Cacao.",
+   "Пиперин к куркумину: Source Naturals BioPerine 10 мг, одна таблетка вместе с куркумином во время еды."]}
+];
+try{
+ const ST={new:["new","Не разобрано"],done:["done","Разобрано"]};
+ document.getElementById("notes").innerHTML=`<p class="notes-intro">Сырые записи. Сначала всё попадает сюда, потом разбираем и переносим на карту, в проблемы или в расписание.</p>`+
+  NOTES.map(n=>`<article class="nb"><div class="nb-h"><span class="nb-d">${n.d}</span><b>${n.t}</b><span class="nb-s ${ST[n.st][0]}">${ST[n.st][1]}</span></div>${n.where?`<p class="nb-d">→ ${n.where}</p>`:""}<ul>${n.pts.map(x=>`<li>${x}</li>`).join("")}</ul></article>`).join("");
+}catch(e){console.error("notes",e)}
+</script>
 </body>
 </html>
