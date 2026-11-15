@@ -1083,12 +1083,14 @@ function applyView(){
     e.line.classList.toggle("dim",show&&!!re&&!inRe);e.line.classList.toggle("on",inRe);
   });
   N.forEach(n=>{
-    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id))||(lm&&!lset.has(n.id));
+    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id))||(lm&&!lset.has(n.id))||(!n.g.length&&!M&&!ego&&!lm&&!(rn&&rn.has(n.id)));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
     n.g_el.classList.toggle("match",!!M&&M.has(n.id));n.g_el.classList.toggle("inset",ms.has(n.id));n.t_el.textContent=(ms.has(n.id)?"✓ ":"")+n.en;
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
+  try{const cur=location.hash,h=state.sel&&state.sel.type==="node"?"#s-"+state.sel.id:state.goal?"#g-"+state.goal:"";
+    if(h!==cur&&(cur===""||/^#[sg]-/.test(cur))&&!document.getElementById("view-graph").hidden)history.replaceState(null,"",location.pathname+location.search+h)}catch(_){}
   // hubs and spokes: a hovered supplement lights its goals, a chosen goal lights its supplements
   const hn=!ego&&!gf&&s&&s.type==="node"?byId[s.id]:null,lit=hn?new Set(hn.g):state.goal?new Set([state.goal]):null;
   RING.forEach(k=>{HUB[k].classList.toggle("dim",!!lit&&!lit.has(k));HUB[k].classList.toggle("on",!!lit&&lit.has(k))});
@@ -1751,7 +1753,7 @@ function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow==
   N.forEach(n=>{n.x=n.x*W/ow;n.y=n.y*H/oh});buildNodes();applyView();render();heat(.2)}
 let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
 const TABS=["graph","links","prob","plan","train","notes"];
-function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
+function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph"){onResize();applyView()}}
 TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>{showTab(t);window.scrollTo({top:0})}));
 if(location.hash==="#plan")showTab("plan");
 if(location.hash==="#links")showTab("links");
@@ -1774,6 +1776,7 @@ document.addEventListener("keydown",ev=>{if(ev.key!=="Escape"||document.activeEl
   if(note.classList.contains("open")||state.sel||state.goal){state.panelOff=true;resetView()}});
 document.getElementById("mapBack").addEventListener("click",resetView);
 
+{const m=location.hash.match(/^#([sg])-(.+)$/);if(m){if(m[1]==="s"&&byId[m[2]])state.sel={type:"node",id:m[2]};else if(m[1]==="g"&&G[m[2]])state.goal=m[2]}}
 applyView();renderNote();
 </script>
 
