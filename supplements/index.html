@@ -28,7 +28,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tb .tabs{margin-left:auto}
 .tab{min-height:24px}
 .tl-short{display:none}
-@media (max-width:700px){.tb .tabs{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.tb .tab{padding:8px 2px;text-align:center;font-size:13px}.tl-long{display:none}.tl-short{display:inline}}
+@media (max-width:700px){.tb .tabs{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}.tb .tab{padding:8px 1px;text-align:center;font-size:12px}.tl-long{display:none}.tl-short{display:inline}}
 #stage,#tdet,#pbody,.view{scroll-margin-top:84px}
 @media (max-width:700px){#stage,#tdet,#pbody,.view{scroll-margin-top:124px}}
 .wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 56px;display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
@@ -376,11 +376,17 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .trow.open .tx{white-space:normal;color:var(--ink)}
 .trow .go{display:none;grid-column:3;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .trow.open .go{display:block}
-.tgroup{display:flex;gap:8px;align-items:center;padding:20px 0 6px;font-weight:600;font-size:14px}
-.tgroup .dot{margin:0}
-.tgroup[hidden]{display:none}
-.glab{font:600 12px var(--f-body);text-anchor:middle;opacity:.45;pointer-events:none;transition:opacity .25s}
-svg#g.ego .glab,svg#g.find .glab{opacity:0}
+.tgrp{display:flex;gap:8px;align-items:center;padding:20px 0 6px;font-weight:600;font-size:14px}
+.tgrp .dot{margin:0}
+.spoke{stroke-width:1.2;stroke-opacity:.38;stroke-linecap:round;transition:opacity .25s,stroke-opacity .25s;pointer-events:none}
+.spoke.on{stroke-opacity:.95;stroke-width:1.8}
+.hub{cursor:pointer;transition:opacity .25s}
+.hub circle{fill-opacity:.13;stroke-width:1.5;transition:fill-opacity .2s}
+.hub:hover circle,.hub.on circle{fill-opacity:.3}
+.hub text{font:600 12px var(--f-body);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.hub.sm text{font-size:9.5px}
+.hub:focus-visible{outline:none}.hub:focus-visible circle{stroke-width:3}
+svg#g.ego .spoke,svg#g.find .spoke,svg#g.ego .hub,svg#g.find .hub{opacity:0;pointer-events:none}
 .edge.syn{stroke-opacity:.3;animation:none}
 .edge.syn.on{stroke-opacity:1;animation:flow 1.4s linear infinite}
 .edge.warn{stroke-opacity:.6}.edge.warn.on{stroke-opacity:1}
@@ -393,7 +399,8 @@ svg#g.ego .glab,svg#g.find .glab{opacity:0}
 <header class="topbar"><div class="tb">
   <a class="back" href="../" aria-label="Все анимации" title="Все анимации">←</a><span class="logo">Карта <em>добавок</em></span>
   <nav class="tabs" role="tablist">
-    <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Связи</button>
+    <button class="tab" id="tab-graph" role="tab" aria-selected="true" aria-controls="view-graph">Карта</button>
+    <button class="tab" id="tab-links" role="tab" aria-selected="false" aria-controls="view-links">Связи</button>
     <button class="tab" id="tab-prob" role="tab" aria-selected="false" aria-controls="view-prob">Проблемы</button>
     <button class="tab" id="tab-plan" role="tab" aria-selected="false" aria-controls="view-plan"><span class="tl-long">Когда принимать</span><span class="tl-short">Приём</span></button>
     <button class="tab" id="tab-train" role="tab" aria-selected="false" aria-controls="view-train"><span class="tl-long">Тренировки</span><span class="tl-short">Спорт</span></button>
@@ -407,12 +414,12 @@ svg#g.ego .glab,svg#g.find .glab{opacity:0}
     <div class="filters">
       <div class="frow" id="goalRow" role="group" aria-label="Цель"><span class="flabel">Цель</span></div>
       <div class="frow" role="group" aria-label="Тип связи">
-        <span class="flabel">Связи</span>
+        <span class="flabel">Взаимодействия</span>
         <button class="chip rel" id="r-all" data-f="all" aria-pressed="true">Все</button>
         <button class="chip rel" id="r-syn" data-f="syn" aria-pressed="false"><span class="ln syn"></span>Помогают</button>
         <button class="chip rel" id="r-anti" data-f="anti" aria-pressed="false"><span class="ln anti"></span>Мешают</button>
         <button class="chip rel" id="r-warn" data-f="warn" aria-pressed="false"><span class="ln warn"></span>Зависит от дозы</button>
-        <button class="chip" id="r-off" aria-pressed="false">Скрыть связи</button>
+        <button class="chip" id="r-off" aria-pressed="false">Показать все</button>
         <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
       </div>
       <div class="frow">
@@ -428,8 +435,20 @@ svg#g.ego .glab,svg#g.find .glab{opacity:0}
       <aside class="note" id="note" aria-live="polite"></aside>
     </div>
 
+  </section>
+
+  <section class="view" id="view-links" role="tabpanel" aria-labelledby="tab-links" hidden>
+    <div class="filters">
+      <div class="frow" role="group" aria-label="Тип связи">
+        <span class="flabel">Тип</span>
+        <button class="chip trel" data-f="all" aria-pressed="true">Все</button>
+        <button class="chip trel" data-f="syn" aria-pressed="false"><span class="ln syn"></span>Помогают</button>
+        <button class="chip trel" data-f="anti" aria-pressed="false"><span class="ln anti"></span>Мешают</button>
+        <button class="chip trel" data-f="warn" aria-pressed="false"><span class="ln warn"></span>Зависит от дозы</button>
+        <label class="chk" for="tHideC"><input type="checkbox" id="tHideC">Без слабых данных (C)</label>
+      </div>
+    </div>
     <div>
-      <h2 style="margin-bottom:12px">Все связи</h2>
       <div class="thead"><span class="sortlbl">Сортировка:</span><button class="sortb" data-sort="pair">Пара<i></i></button><button class="sortb" data-sort="type">Тип<i></i></button><span class="tcol">Что происходит</span><button class="sortb" data-sort="ev">Данные<i></i></button></div>
       <div class="table" id="table"></div>
     </div>
@@ -780,7 +799,7 @@ const byId=Object.fromEntries(N.map(n=>[n.id,n]));
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
-const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",noEdges:false,help:false,panelOff:false};
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",noEdges:true,help:false,panelOff:false};
 const AL={D3:"vitamin d холекальциферол витамин д",K2:"mk-7 mk7 менахинон витамин к",A:"retinol ретинол бета-каротин",E:"tocopherol токоферол",C:"ascorbic аскорбиновая кислота",B1:"thiamine тиамин бенфотиамин",B6:"pyridoxine пиридоксин p5p",B9:"folate folic фолиевая метилфолат",B12:"cobalamin кобаламин метилкобаламин",Ca:"calcium",Mg:"magnesium глицинат цитрат",Zn:"zinc",Cu:"copper",Fe:"iron ферритин",Se:"selenium",I:"iodine",O3:"omega fish oil рыбий жир epa dha омега",Cur:"curcumin turmeric куркума",Pip:"piperine bioperine чёрный перец",Q10:"coq10 убихинон убихинол коэнзим",Cre:"creatine",Gly:"glycine",NAD:"nmn nr никотинамид рибозид",Api:"apigenin ромашка",NAC:"nac n-acetylcysteine ацетилцистеин глутатион",Tau:"taurine",LT:"l-theanine theanine теанин",Ash:"ashwagandha ksm-66",Cof:"coffee caffeine tea кофеин чай",Mel:"melatonin",Gar:"garlic aged kyolic чеснок",Beet:"beet beetroot nitrate нитраты свекла свёкла",Hib:"hibiscus каркаде",Rho:"rhodiola",Saf:"saffron affron",Bac:"bacopa",BA:"beta-alanine бета аланин",Bic:"bicarbonate сода",Prot:"protein whey протеин белок",Psy:"psyllium клетчатка",Pro:"probiotic пробиотик",GTE:"green tea egcg катехины зелёный чай",Coc:"cocoa cacao flavanols какао флаванолы",Res:"resveratrol ресвератрол"};
 const norm=x=>x.toLowerCase().replace(/ё/g,"е");
 N.forEach(n=>{n.hay=norm([n.name,n.s,n.id,AL[n.id]||""].join(" "));n.words=n.hay.split(/[\s()+,.\-]+/).filter(Boolean)});
@@ -878,30 +897,34 @@ goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)r
   state.goal=b.dataset.g||null;state.sel=null;state.help=false;state.panelOff=false;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
 
 /* ---------- graph ---------- */
-const RING=["sleep","brain","energy","immune","bones","heart","infl","long"],GA={};
-let GLAB=null;
-// every goal owns a spot on a ring; a node is pulled toward its goals (the first one counts most)
+const RING=["sleep","infl","immune","bones","heart","energy","brain","long"],GA={};
+let HUB=null,HR=44;
+// every goal is a big hub on a ring; supplements hang off the hubs they serve
 function anchors(){
-  RING.forEach((k,i)=>{const a=-Math.PI/2+i/RING.length*Math.PI*2;GA[k]={a,x:W/2+Math.cos(a)*W*.31,y:H/2+Math.sin(a)*H*.33}});
+  RING.forEach((k,i)=>{const a=-Math.PI/2+i/RING.length*Math.PI*2;GA[k]={a,x:W/2+Math.cos(a)*W*(W<600?.2:.3),y:H/2+Math.sin(a)*H*(W<600?.37:.3)}});HR=Math.max(34,Math.round(44*S));
   N.forEach(n=>{if(!n.g.length){n.ax=W/2;n.ay=H/2;return}
     let sx=0,sy=0,sw=0;n.g.forEach((k,j)=>{const w=j?1:2.5;sx+=GA[k].x*w;sy+=GA[k].y*w;sw+=w});n.ax=sx/sw;n.ay=sy/sw});
-  if(GLAB)RING.forEach(k=>{const p=GA[k],t=GLAB[k];
-    const cl=(v,m)=>Math.max(-m,Math.min(m,v));
-    t.setAttribute("x",(W/2+cl(Math.cos(p.a)*W*.62,W/2-52)).toFixed(0));
-    t.setAttribute("y",(H/2+cl(Math.sin(p.a)*H*.62,H/2-20)+4).toFixed(0));
-    t.style.display=W<600?"none":""});
+  if(HUB)RING.forEach(k=>{const h=HUB[k];h.setAttribute("transform",`translate(${GA[k].x.toFixed(1)},${GA[k].y.toFixed(1)})`);
+    h.firstChild.setAttribute("r",HR);h.classList.toggle("sm",HR<40)});
 }
 function measure(){
   const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
-  W=w;H=w<600?Math.round(Math.max(900,w*2.35)):Math.round(Math.min(960,Math.max(700,w*.78)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
+  W=w;H=w<600?Math.round(Math.max(980,w*2.8)):Math.round(Math.min(960,Math.max(700,w*.78)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";anchors();
   return [ow,oh];
 }
 measure();
 N.forEach((n,i)=>{const a=i*2.4;n.x=n.ax+Math.cos(a)*50;n.y=n.ay+Math.sin(a)*50;n.vx=n.vy=0;n.tx=n.ty=null});
 
-const gL=el("g",{},svg),gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
-GLAB={};RING.forEach(k=>{const t=el("text",{class:"glab",style:`fill:var(${G[k].c})`},gL);t.textContent=G[k].n;GLAB[k]=t});anchors();
+const gS=el("g",{},svg),gHub=el("g",{},svg),gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
+HUB={};RING.forEach(k=>{const c=`var(${G[k].c})`,h=el("g",{class:"hub",tabindex:"0",role:"button","aria-label":"Цель: "+G[k].n},gHub);
+  el("circle",{r:HR,style:`fill:${c};stroke:${c}`},h);
+  const w=G[k].n.split(" и "),ln=w.length>1?[w[0]+" и",w[1]]:[G[k].n];
+  ln.forEach((x,i)=>{const t=el("text",{y:(i-(ln.length-1)/2)*14,style:`fill:${c}`},h);t.textContent=x});
+  const go=()=>document.getElementById(state.goal===k?"goal-all":"goal-"+k).click();
+  h.addEventListener("click",ev=>{ev.stopPropagation();go()});
+  h.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();go()}});HUB[k]=h});
+N.forEach(n=>{n.sp=n.g.map(k=>({k,l:el("line",{class:"spoke",style:`stroke:var(${G[k].c})`},gS)}))});anchors();
 E.forEach(e=>{
   e.line=el("line",{class:`edge ${e.t} ev${e.ev}`},gE);
   e.hit=el("line",{class:"hit"},gH);
@@ -938,7 +961,7 @@ let KEEP=null,keepKey="",FOCUS=false,focusKey=""; // search results: only these 
 function tick(a){
   // focus mode: the rest of the map is frozen, the chosen group glides to its ego layout
   if(FOCUS){N.forEach(n=>{if(n.fx!=null){n.x=n.fx;n.y=n.fy}else if(n.tx!=null){n.x+=(n.tx-n.x)*.2;n.y+=(n.ty-n.y)*.2}});return}
-  const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2,GRAV=.085;
+  const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2,LH=HR+(W<600?40:64*S),KEEPOUT=HR+R+16;
   for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){
     const p=N[i],q=N[j];if(KEEP&&(!KEEP.has(p.id)||!KEEP.has(q.id)))continue;
     let dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
@@ -946,24 +969,29 @@ function tick(a){
     const d=Math.sqrt(d2),f=REP*a/Math.max(d2,MIN);
     p.vx-=dx/d*f;p.vy-=dy/d*f;q.vx+=dx/d*f;q.vy+=dy/d*f;
   }
-  E.forEach(e=>{if(KEEP&&(!KEEP.has(e.a)||!KEEP.has(e.b)))return;const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
-    const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*(KEEP?.055:.022)*a;
+  if(KEEP)E.forEach(e=>{if(!KEEP.has(e.a)||!KEEP.has(e.b))return;const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
+    const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*.055*a;
     p.vx+=dx*k;p.vy+=dy*k;q.vx-=dx*k;q.vy-=dy*k});
-  const padT=R+34,padB=R+62,cp=KEEP?5:1;
+  const padT=R+(W<600?48:10),padB=R+28,cp=KEEP?5:1;
   N.forEach(n=>{
     if(KEEP&&!KEEP.has(n.id))return;
     const cy=KEEP?Math.min(H/2,330):H/2;
-    if(KEEP){n.vx+=(W/2-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}else{n.vx+=(n.ax-n.x)*GRAV*a;n.vy+=(n.ay-n.y)*GRAV*a}
+    if(KEEP||!n.g.length){n.vx+=(W/2-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}
+    else n.g.forEach(k=>{const h=GA[k],dx=h.x-n.x,dy=h.y-n.y,d=Math.hypot(dx,dy)||1,f=(d-LH)/d*.07*a;n.vx+=dx*f;n.vy+=dy*f});
     if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
     n.vx*=.6;n.vy*=.6;n.x+=n.vx;n.y+=n.vy;
-    const padX=Math.max(R+8,n.name.length*3.2+6,W>=900?156:0); // keep the whole label on screen
+    const padX=Math.max(R+8,n.name.length*3.2+6); // keep the whole label on screen
     n.x=Math.min(W-padX,Math.max(padX,n.x));n.y=Math.min(H-padB,Math.max(padT,n.y));
+    // a supplement never sits on top of a goal hub
+    if(!KEEP)for(const k of RING){const h=GA[k],dx=n.x-h.x,dy=n.y-h.y,d=Math.hypot(dx,dy)||1;if(d<KEEPOUT){n.x=h.x+dx/d*KEEPOUT;n.y=h.y+dy/d*KEEPOUT}}
   });
 }
 function render(){
   E.forEach(e=>{const p=byId[e.a],q=byId[e.b];
     for(const l of [e.line,e.hit]){l.setAttribute("x1",p.x.toFixed(1));l.setAttribute("y1",p.y.toFixed(1));l.setAttribute("x2",q.x.toFixed(1));l.setAttribute("y2",q.y.toFixed(1))}});
-  N.forEach(n=>n.g_el.setAttribute("transform",`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`));
+  N.forEach(n=>{n.g_el.setAttribute("transform",`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
+    n.sp.forEach(({k,l})=>{const h=GA[k],dx=n.x-h.x,dy=n.y-h.y,d=Math.hypot(dx,dy)||1;
+      l.setAttribute("x1",(h.x+dx/d*HR).toFixed(1));l.setAttribute("y1",(h.y+dy/d*HR).toFixed(1));l.setAttribute("x2",n.x.toFixed(1));l.setAttribute("y2",n.y.toFixed(1))})});
 }
 function loop(){tick(alpha);render();alpha*=.985;if(alpha>.004||dragging)raf=requestAnimationFrame(loop);else raf=null}
 function heat(a){alpha=Math.max(alpha,a);if(!raf)raf=requestAnimationFrame(loop)}
@@ -1018,7 +1046,10 @@ function applyView(){
     n.g_el.classList.toggle("match",!!M&&M.has(n.id));
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
-  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});document.querySelectorAll(".tgroup").forEach(g=>{g.hidden=state.filter!=="all"&&state.filter!==g.dataset.t});
+  // hubs and spokes: a hovered supplement lights its goals, a chosen goal lights its supplements
+  const hn=!ego&&s&&s.type==="node"?byId[s.id]:null,lit=hn?new Set(hn.g):state.goal?new Set([state.goal]):null;
+  RING.forEach(k=>{HUB[k].classList.toggle("dim",!!lit&&!lit.has(k));HUB[k].classList.toggle("on",!!lit&&lit.has(k))});
+  N.forEach(n=>n.sp.forEach(({k,l})=>{const on=hn?n===hn:state.goal?k===state.goal:false;l.classList.toggle("on",on);l.classList.toggle("dim",!!lit&&!on)}));
 }
 function layoutFocus(s,re){
   const wide=innerWidth>900,panel=wide&&!state.panelOff?Math.min(400,W-24)+24:0;
@@ -1079,7 +1110,7 @@ function renderNote(){
         </ul></section>
       <section class="ns"><h4>Цвет кольца — цель</h4>
         <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.n}</span></li>`).join("")}</ul></section>
-      <p class="kind">Добавки стоят рядом со своей целью, подписи целей по краям карты. Нажми на кружок: останутся только он и его связи.</p>`;
+      <p class="kind">Большие круги — цели. Линия от добавки к кругу значит, что её принимают для этой цели: чем больше линий, тем шире действие. Нажми на добавку: останутся только она и её взаимодействия с другими.</p>`;
   } else if(s.type==="node"){
     const n=byId[s.id];
     const inSet=mySet().has(n.id),inf=INFO[n.id]||{};
@@ -1114,22 +1145,26 @@ function renderNote(){
 }
 
 const ord={syn:0,anti:1,warn:2};
-const sortSt={k:"type",d:1};
+const sortSt={k:"type",d:1},tbl={f:"all",hideC:false};
+function tvis(){document.querySelectorAll(".trow").forEach(r=>{const e=E[+r.dataset.i];r.hidden=!((tbl.f==="all"||tbl.f===e.t)&&!(tbl.hideC&&e.ev==="C"))});
+  document.querySelectorAll(".tgrp").forEach(g=>{g.hidden=tbl.f!=="all"&&tbl.f!==g.dataset.t})}
 function renderTable(){
   const tv={syn:0,anti:1,warn:2};
   const cmp={type:(x,y)=>tv[x.t]-tv[y.t]||x.ev.localeCompare(y.ev),pair:(x,y)=>pairName(x).localeCompare(pairName(y),"ru"),ev:(x,y)=>x.ev.localeCompare(y.ev)||tv[x.t]-tv[y.t]};
   const cnt={};E.forEach(e=>{cnt[e.t]=(cnt[e.t]||0)+1});let last=null;
   document.getElementById("table").innerHTML=[...E].sort((x,y)=>cmp[sortSt.k](x,y)*sortSt.d).map(e=>{
-    const head=sortSt.k==="type"&&e.t!==last?`<div class="tgroup" data-t="${e.t}"><span class="dot ${e.t}"></span>${TNAME[e.t]} <span class="kind">${cnt[e.t]}</span></div>`:"";last=e.t;
+    const head=sortSt.k==="type"&&e.t!==last?`<div class="tgrp" data-t="${e.t}"><span class="dot ${e.t}"></span>${TNAME[e.t]} <span class="kind">${cnt[e.t]}</span></div>`:"";last=e.t;
     return head+`<button class="trow" data-i="${e.i}" aria-expanded="false"><span class="pr">${esc(pairName(e))}</span><span class="ty"><span class="dot ${e.t}"></span>${TNAME[e.t]}</span><span class="tx">${esc(e.txt)}</span><span class="ev">${e.ev}</span><span class="go">Показать на карте →</span></button>`}).join("");
   document.querySelectorAll("[data-sort]").forEach(b=>{const on=b.dataset.sort===sortSt.k;b.setAttribute("aria-pressed",on);b.querySelector("i").textContent=on?(sortSt.d>0?"▲":"▼"):""});
-  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});document.querySelectorAll(".tgroup").forEach(g=>{g.hidden=state.filter!=="all"&&state.filter!==g.dataset.t});
+  tvis();
 }
+document.querySelectorAll(".trel").forEach(b=>b.addEventListener("click",()=>{tbl.f=b.dataset.f;document.querySelectorAll(".trel").forEach(x=>x.setAttribute("aria-pressed",x===b));tvis()}));
+document.getElementById("tHideC").addEventListener("change",ev=>{tbl.hideC=ev.target.checked;tvis()});
 document.querySelectorAll("[data-sort]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.sort;if(sortSt.k===k)sortSt.d*=-1;else{sortSt.k=k;sortSt.d=1}renderTable()}));
 renderTable();
 decorate(document.getElementById("table"));
 document.getElementById("table").addEventListener("click",ev=>{const r=ev.target.closest(".trow");if(!r)return;
-  if(ev.target.closest(".go")){select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});return}
+  if(ev.target.closest(".go")){showTab("graph");select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:"auto",block:"start"});return}
   const on=!r.classList.contains("open");document.querySelectorAll(".trow.open").forEach(x=>{x.classList.remove("open");x.setAttribute("aria-expanded","false")});
   r.classList.toggle("open",on);r.setAttribute("aria-expanded",on)});
 
@@ -1663,10 +1698,11 @@ renderProb();
 function onResize(){if(!stage.clientWidth)return;const [ow,oh]=measure();if(ow===W&&oh===H)return;
   N.forEach(n=>{n.x=n.x*W/ow;n.y=n.y*H/oh});buildNodes();applyView();render();heat(.2)}
 let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(onResize,150)});
-const TABS=["graph","prob","plan","train","notes"];
+const TABS=["graph","links","prob","plan","train","notes"];
 function showTab(w){TABS.forEach(t=>{document.getElementById("view-"+t).hidden=t!==w;document.getElementById("tab-"+t).setAttribute("aria-selected",t===w)});if(w==="graph")onResize()}
 TABS.forEach(t=>document.getElementById("tab-"+t).addEventListener("click",()=>{showTab(t);window.scrollTo({top:0})}));
 if(location.hash==="#plan")showTab("plan");
+if(location.hash==="#links")showTab("links");
 if(location.hash==="#problems")showTab("prob");
 if(location.hash==="#train")showTab("train");
 
@@ -1675,7 +1711,7 @@ const qClear=document.getElementById("qclear");
 function setQ(v){qIn.value=v;state.q=v;state.sel=null;state.help=false;state.panelOff=false;const M=matches();qCount.textContent=M?`${M.size}`:"";qClear.hidden=!v;applyView();renderNote()}
 qIn.addEventListener("input",()=>setQ(qIn.value));
 qClear.addEventListener("click",()=>{setQ("");qIn.focus()});
-document.getElementById("r-off").addEventListener("click",ev=>{state.noEdges=!state.noEdges;ev.currentTarget.setAttribute("aria-pressed",state.noEdges);ev.currentTarget.textContent=state.noEdges?"Показать связи":"Скрыть связи";applyView()});
+document.getElementById("r-off").addEventListener("click",ev=>{state.noEdges=!state.noEdges;ev.currentTarget.setAttribute("aria-pressed",!state.noEdges);ev.currentTarget.textContent=state.noEdges?"Показать все":"Скрыть";applyView()});
 qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&&M.size){ev.preventDefault();select({type:"node",id:[...M][0]})}}
   if(ev.key==="Escape")setQ("")});
 
