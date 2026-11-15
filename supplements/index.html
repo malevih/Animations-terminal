@@ -376,11 +376,16 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .trow.open .tx{white-space:normal;color:var(--ink)}
 .trow .go{display:none;grid-column:3;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .trow.open .go{display:block}
+.gtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gtag{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;color:var(--c);border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.gtag:hover{background:color-mix(in srgb,var(--c) 28%,transparent)}
+.gtag:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+svg#g.gf .hub.dim,svg#g.gf .spoke.dim{opacity:0;pointer-events:none}
 .tgrp{display:flex;gap:8px;align-items:center;padding:20px 0 6px;font-weight:600;font-size:14px}
 .tgrp .dot{margin:0}
 .spoke{stroke-width:1.2;stroke-opacity:.38;stroke-linecap:round;transition:opacity .25s,stroke-opacity .25s;pointer-events:none}
 .spoke.on{stroke-opacity:.95;stroke-width:1.8}
-.hub{cursor:pointer;transition:opacity .25s}
+.hub{cursor:grab;touch-action:none;transition:opacity .25s}
 .hub circle{fill-opacity:.13;stroke-width:1.5;transition:fill-opacity .2s}
 .hub:hover circle,.hub.on circle{fill-opacity:.3}
 .hub text{font:600 12px var(--f-body);text-anchor:middle;dominant-baseline:central;pointer-events:none}
@@ -796,6 +801,11 @@ const INFO={
 
 const TNAME={syn:"Помогают",anti:"Мешают",warn:"Зависит от дозы"};
 const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+// English names are used on the map and in the card; Russian names stay in tables and schedules
+const EN={D3:"Vitamin D3",K2:"Vitamin K2",A:"Vitamin A",E:"Vitamin E",C:"Vitamin C",B1:"Vitamin B1",B6:"Vitamin B6",B9:"Folate (B9)",B12:"Vitamin B12",Ca:"Calcium",Mg:"Magnesium",Zn:"Zinc",Cu:"Copper",Fe:"Iron",Se:"Selenium",I:"Iodine",O3:"Omega-3",Cur:"Curcumin",Pip:"Piperine",Q10:"Coenzyme Q10",Cre:"Creatine",Gly:"Glycine",NAD:"NAD+ (NMN, NR)",Api:"Apigenin",NAC:"NAC",Tau:"Taurine",LT:"L-Theanine",Ash:"Ashwagandha",Mel:"Melatonin",Gar:"Garlic extract",Beet:"Beetroot juice",Hib:"Hibiscus tea",Rho:"Rhodiola rosea",Saf:"Saffron extract",Bac:"Bacopa monnieri",BA:"Beta-alanine",Bic:"Sodium bicarbonate",Prot:"Whey protein",Psy:"Psyllium",Pro:"Probiotics",Cof:"Coffee & tea",GTE:"Green tea extract",Coc:"Cocoa flavanols",Res:"Resveratrol"};
+N.forEach(n=>{n.en=EN[n.id]||n.name});
+const GEN={long:"Anti-aging",infl:"Inflammation",sleep:"Sleep & stress",energy:"Energy",brain:"Brain & focus",heart:"Heart",bones:"Bones & muscle",immune:"Immunity"};
+Object.keys(G).forEach(k=>{G[k].en=GEN[k]||G[k].n});
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
@@ -892,7 +902,7 @@ addEventListener("scroll",hideTip,{passive:true});
 /* ---------- goal chips ---------- */
 const goalRow=document.getElementById("goalRow");
 goalRow.insertAdjacentHTML("beforeend",`<button class="chip goal" id="goal-all" data-g="" aria-pressed="true">Все</button>`+
-  Object.entries(G).map(([k,g])=>`<button class="chip goal" id="goal-${k}" data-g="${k}" aria-pressed="false"><span class="gdot" style="background:var(${g.c})"></span>${g.n}</button>`).join(""));
+  Object.entries(G).map(([k,g])=>`<button class="chip goal" id="goal-${k}" data-g="${k}" aria-pressed="false"><span class="gdot" style="background:var(${g.c})"></span>${g.en}</button>`).join(""));
 goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)return;
   state.goal=b.dataset.g||null;state.sel=null;state.help=false;state.panelOff=false;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
 
@@ -901,7 +911,7 @@ const RING=["sleep","infl","immune","bones","heart","energy","brain","long"],GA=
 let HUB=null,HR=44;
 // every goal is a big hub on a ring; supplements hang off the hubs they serve
 function anchors(){
-  RING.forEach((k,i)=>{const a=-Math.PI/2+i/RING.length*Math.PI*2;GA[k]={a,x:W/2+Math.cos(a)*W*(W<600?.2:.3),y:H/2+Math.sin(a)*H*(W<600?.37:.3)}});HR=Math.max(34,Math.round(44*S));
+  RING.forEach((k,i)=>{const a=-Math.PI/2+i/RING.length*Math.PI*2;const x=W/2+Math.cos(a)*W*(W<600?.2:.3),y=H/2+Math.sin(a)*H*(W<600?.37:.3);GA[k]={a,x,y,hx:x,hy:y,tx:null,ty:null}});HR=Math.max(34,Math.round(44*S));
   N.forEach(n=>{if(!n.g.length){n.ax=W/2;n.ay=H/2;return}
     let sx=0,sy=0,sw=0;n.g.forEach((k,j)=>{const w=j?1:2.5;sx+=GA[k].x*w;sy+=GA[k].y*w;sw+=w});n.ax=sx/sw;n.ay=sy/sw});
   if(HUB)RING.forEach(k=>{const h=HUB[k];h.setAttribute("transform",`translate(${GA[k].x.toFixed(1)},${GA[k].y.toFixed(1)})`);
@@ -910,20 +920,20 @@ function anchors(){
 function measure(){
   const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
   W=w;H=w<600?Math.round(Math.max(980,w*2.8)):Math.round(Math.min(960,Math.max(700,w*.78)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";anchors();
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";if(ow!==W||oh!==H||!GA.sleep)anchors();
   return [ow,oh];
 }
 measure();
 N.forEach((n,i)=>{const a=i*2.4;n.x=n.ax+Math.cos(a)*50;n.y=n.ay+Math.sin(a)*50;n.vx=n.vy=0;n.tx=n.ty=null});
 
 const gS=el("g",{},svg),gHub=el("g",{},svg),gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
-HUB={};RING.forEach(k=>{const c=`var(${G[k].c})`,h=el("g",{class:"hub",tabindex:"0",role:"button","aria-label":"Цель: "+G[k].n},gHub);
+HUB={};RING.forEach(k=>{const c=`var(${G[k].c})`,h=el("g",{class:"hub",tabindex:"0",role:"button","aria-label":"Цель: "+G[k].en},gHub);
   el("circle",{r:HR,style:`fill:${c};stroke:${c}`},h);
-  const w=G[k].n.split(" и "),ln=w.length>1?[w[0]+" и",w[1]]:[G[k].n];
+  const w=G[k].en.split(" & "),ln=w.length>1?[w[0]+" &",w[1]]:[G[k].en];
   ln.forEach((x,i)=>{const t=el("text",{y:(i-(ln.length-1)/2)*14,style:`fill:${c}`},h);t.textContent=x});
-  const go=()=>document.getElementById(state.goal===k?"goal-all":"goal-"+k).click();
-  h.addEventListener("click",ev=>{ev.stopPropagation();go()});
-  h.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();go()}});HUB[k]=h});
+  h.addEventListener("pointerdown",ev=>{ev.preventDefault();hubDrag={k,cx:ev.clientX,cy:ev.clientY,moved:false};try{svg.setPointerCapture(ev.pointerId)}catch(_){}});
+  h.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();hubGo(k)}});HUB[k]=h});
+function hubGo(k){document.getElementById(state.goal===k?"goal-all":"goal-"+k).click()}
 N.forEach(n=>{n.sp=n.g.map(k=>({k,l:el("line",{class:"spoke",style:`stroke:var(${G[k].c})`},gS)}))});anchors();
 E.forEach(e=>{
   e.line=el("line",{class:`edge ${e.t} ev${e.ev}`},gE);
@@ -936,7 +946,7 @@ function arc(r,a0,a1){const p=a=>[Math.cos(a)*r,Math.sin(a)*r],[x0,y0]=p(a0),[x1
 function buildNodes(){
   gN.textContent="";
   N.forEach((n,i)=>{
-    const g=el("g",{class:"node",tabindex:"0",role:"button","aria-label":n.name,style:`--glow:${gcol(n)}`},gN);
+    const g=el("g",{class:"node",tabindex:"0",role:"button","aria-label":n.en,style:`--glow:${gcol(n)}`},gN);
     const inn=el("g",{class:"in",style:`--d:${(i*.03).toFixed(2)}s`},g);
     const rr=R+4.5,k=n.g.length,gap=k>1?.32:0;
     if(k===0) el("circle",{class:"arc",r:rr,style:"stroke:var(--muted)","stroke-width":2,"stroke-dasharray":"2 4"},inn);
@@ -945,7 +955,7 @@ function buildNodes(){
       el("path",{class:"arc",d:arc(rr,a0,a1),style:`stroke:var(${G[gk].c})`,"stroke-width":3.5},inn)});
     el("circle",{class:"core",r:R},inn);
     const s=el("text",{class:"sym"},inn);s.textContent=n.s;if(n.s.length>2)s.style.fontSize="10px";
-    const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.name;
+    const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.en;
     n.g_el=g;
     g.addEventListener("pointerdown",ev=>startDrag(ev,n));
     g.addEventListener("pointerenter",()=>{state.hover=n.id;applyView()});
@@ -960,7 +970,9 @@ function visible(e){return (state.filter==="all"||state.filter===e.t)&&!(state.h
 let KEEP=null,keepKey="",FOCUS=false,focusKey=""; // search results: only these nodes move and gather in the centre
 function tick(a){
   // focus mode: the rest of the map is frozen, the chosen group glides to its ego layout
-  if(FOCUS){N.forEach(n=>{if(n.fx!=null){n.x=n.fx;n.y=n.fy}else if(n.tx!=null){n.x+=(n.tx-n.x)*.2;n.y+=(n.ty-n.y)*.2}});return}
+  if(FOCUS){N.forEach(n=>{if(n.fx!=null){n.x=n.fx;n.y=n.fy}else if(n.tx!=null){n.x+=(n.tx-n.x)*.2;n.y+=(n.ty-n.y)*.2}});
+    RING.forEach(k=>{const h=GA[k];if(h.tx!=null){h.x+=(h.tx-h.x)*.2;h.y+=(h.ty-h.y)*.2}});return}
+  RING.forEach(k=>{const h=GA[k];h.x+=(h.hx-h.x)*.25;h.y+=(h.hy-h.y)*.25});
   const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2,LH=HR+(W<600?40:64*S),KEEPOUT=HR+R+16;
   for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){
     const p=N[i],q=N[j];if(KEEP&&(!KEEP.has(p.id)||!KEEP.has(q.id)))continue;
@@ -980,7 +992,7 @@ function tick(a){
     else n.g.forEach(k=>{const h=GA[k],dx=h.x-n.x,dy=h.y-n.y,d=Math.hypot(dx,dy)||1,f=(d-LH)/d*.07*a;n.vx+=dx*f;n.vy+=dy*f});
     if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
     n.vx*=.6;n.vy*=.6;n.x+=n.vx;n.y+=n.vy;
-    const padX=Math.max(R+8,n.name.length*3.2+6); // keep the whole label on screen
+    const padX=Math.max(R+8,n.en.length*3.2+6); // keep the whole label on screen
     n.x=Math.min(W-padX,Math.max(padX,n.x));n.y=Math.min(H-padB,Math.max(padT,n.y));
     // a supplement never sits on top of a goal hub
     if(!KEEP)for(const k of RING){const h=GA[k],dx=n.x-h.x,dy=n.y-h.y,d=Math.hypot(dx,dy)||1;if(d<KEEPOUT){n.x=h.x+dx/d*KEEPOUT;n.y=h.y+dy/d*KEEPOUT}}
@@ -989,6 +1001,7 @@ function tick(a){
 function render(){
   E.forEach(e=>{const p=byId[e.a],q=byId[e.b];
     for(const l of [e.line,e.hit]){l.setAttribute("x1",p.x.toFixed(1));l.setAttribute("y1",p.y.toFixed(1));l.setAttribute("x2",q.x.toFixed(1));l.setAttribute("y2",q.y.toFixed(1))}});
+  RING.forEach(k=>HUB[k].setAttribute("transform",`translate(${GA[k].x.toFixed(1)},${GA[k].y.toFixed(1)})`));
   N.forEach(n=>{n.g_el.setAttribute("transform",`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
     n.sp.forEach(({k,l})=>{const h=GA[k],dx=n.x-h.x,dy=n.y-h.y,d=Math.hypot(dx,dy)||1;
       l.setAttribute("x1",(h.x+dx/d*HR).toFixed(1));l.setAttribute("y1",(h.y+dy/d*HR).toFixed(1));l.setAttribute("x2",n.x.toFixed(1));l.setAttribute("y2",n.y.toFixed(1))})});
@@ -1009,7 +1022,17 @@ let lastNodeUp=0;
 function endDrag(){if(!dragging)return;const {n,moved}=dragging;n.fx=n.fy=null;dragging=null;lastNodeUp=performance.now();if(!moved)select({type:"node",id:n.id});else heat(.15)}
 svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",endDrag);
 // pointer capture retargets the click after a node tap to the svg; ignore that one
-svg.addEventListener("click",ev=>{if(ev.target===svg&&performance.now()-lastNodeUp>400)select(null)});
+svg.addEventListener("click",ev=>{if(ev.target===svg&&performance.now()-lastNodeUp>400)resetView()});
+// goal hubs can be dragged too; a tap without movement opens the goal
+let hubDrag=null;
+svg.addEventListener("pointermove",ev=>{if(!hubDrag||FOCUS)return;
+  if(!hubDrag.moved&&Math.hypot(ev.clientX-hubDrag.cx,ev.clientY-hubDrag.cy)<8)return;
+  hubDrag.moved=true;const q=pt(ev),h=GA[hubDrag.k];h.hx=h.x=Math.min(W-HR,Math.max(HR,q.x));h.hy=h.y=Math.min(H-HR,Math.max(HR,q.y));heat(.3)});
+svg.addEventListener("pointerup",()=>{if(!hubDrag)return;const {k,moved}=hubDrag;hubDrag=null;lastNodeUp=performance.now();if(!moved)hubGo(k)});
+svg.addEventListener("pointercancel",()=>{hubDrag=null});
+// one way out of any focus: back to the whole map, goal filter cleared
+function resetView(){state.sel=null;state.help=false;state.goal=null;
+  goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x.dataset.g===""));applyView();renderNote()}
 
 function select(s){state.sel=s;if(s){state.help=false;state.panelOff=false}applyView();renderNote();note.scrollTop=0}
 function focusSets(){
@@ -1024,10 +1047,11 @@ function focusSets(){
   return {rn:null,re:null,s:null,M:null};
 }
 function applyView(){
-  const {rn,re,s,M}=focusSets(),focus=!!s,ego=!!state.sel;
-  layoutFocus(ego?state.sel:null,re);
-  svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M);
-  document.getElementById("mapBack").hidden=!ego;document.getElementById("mapHelp").hidden=ego;
+  const {rn,re,s,M}=focusSets(),focus=!!s,ego=!!state.sel,gf=!ego&&!M&&!!state.goal;
+  const gset=gf?new Set(N.filter(n=>n.g.includes(state.goal)).map(n=>n.id)):null;
+  layoutFocus(ego?state.sel:gf?{type:"goal",k:state.goal}:null,re);
+  svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M);svg.classList.toggle("gf",gf);
+  document.getElementById("mapBack").hidden=!(ego||gf);document.getElementById("mapHelp").hidden=ego||gf;
   // while searching, everything outside the matches (and the hovered node's partners) disappears entirely
   const keep=M?new Set([...M,...(rn||[])]):null;
   const k=M?[...M].sort().join():"";if(k!==keepKey){keepKey=k;KEEP=M&&M.size>1?M:null;heat(.6)}
@@ -1035,29 +1059,36 @@ function applyView(){
     const inRe=!!re&&re.has(e.i);
     let show=visible(e)||(!!s&&s.type==="edge"&&s.i===e.i);
     if((M||ego)&&!inRe)show=false;
+    if(gf&&!(gset.has(e.a)&&gset.has(e.b)))show=false;
     if(state.noEdges&&!(focus&&inRe))show=false;
     e.line.classList.toggle("hide",!show);e.hit.classList.toggle("hide",!show);
     e.line.classList.toggle("dim",show&&!!re&&!inRe);e.line.classList.toggle("on",inRe);
   });
   N.forEach(n=>{
-    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id));
+    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
     n.g_el.classList.toggle("match",!!M&&M.has(n.id));
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
   // hubs and spokes: a hovered supplement lights its goals, a chosen goal lights its supplements
-  const hn=!ego&&s&&s.type==="node"?byId[s.id]:null,lit=hn?new Set(hn.g):state.goal?new Set([state.goal]):null;
+  const hn=!ego&&!gf&&s&&s.type==="node"?byId[s.id]:null,lit=hn?new Set(hn.g):state.goal?new Set([state.goal]):null;
   RING.forEach(k=>{HUB[k].classList.toggle("dim",!!lit&&!lit.has(k));HUB[k].classList.toggle("on",!!lit&&lit.has(k))});
   N.forEach(n=>n.sp.forEach(({k,l})=>{const on=hn?n===hn:state.goal?k===state.goal:false;l.classList.toggle("on",on);l.classList.toggle("dim",!!lit&&!on)}));
 }
 function layoutFocus(s,re){
   const wide=innerWidth>900,panel=wide&&!state.panelOff?Math.min(400,W-24)+24:0;
-  const key=s?[s.type,s.type==="node"?s.id:s.i,state.filter,state.hideC,W,H,panel].join():"";
+  const key=s?[s.type,s.type==="node"?s.id:s.type==="goal"?s.k:s.i,state.filter,state.hideC,W,H,panel].join():"";
   if(key===focusKey)return;focusKey=key;
-  N.forEach(n=>{n.tx=n.ty=null});FOCUS=!!s;
+  N.forEach(n=>{n.tx=n.ty=null});RING.forEach(k=>{GA[k].tx=GA[k].ty=null});FOCUS=!!s;
   if(!s){heat(.5);return}
   const cx=(W-panel)/2,cy=wide?H/2:Math.min(H/2,300);
+  // a chosen goal moves to the centre, its supplements form a ring (two rings when there are many)
+  if(s.type==="goal"){const gy=wide?cy:Math.min(H/2,360),h=GA[s.k];h.tx=cx;h.ty=gy;
+    const ns=N.filter(n=>n.g.includes(s.k)).sort((a,b)=>a.g.length-b.g.length),two=wide&&ns.length>9,sc=ns.length<=4?.6:ns.length<=7?.8:1;
+    const rx=Math.max(100,Math.min(290,cx-76))*sc,ry=Math.max(120,Math.min(wide?270:310,gy-R-44))*sc;
+    ns.forEach((n,i)=>{const a=-Math.PI/2+(i+.5)/ns.length*Math.PI*2,f=i%2&&ns.length>9?(two?.6:.84):1;n.tx=cx+Math.cos(a)*rx*f;n.ty=gy+Math.sin(a)*ry*f});
+    heat(.5);return}
   if(s.type==="edge"){const e=E[s.i],d=Math.min(110,cx-70);
     byId[e.a].tx=cx-d;byId[e.b].tx=cx+d;byId[e.a].ty=byId[e.b].ty=cy;heat(.5);return}
   const c=byId[s.id];c.tx=cx;c.ty=cy;
@@ -1076,7 +1107,7 @@ function connList(n){
   const ord={syn:0,anti:1,warn:2};
   const rel=E.filter(e=>(e.a===n.id||e.b===n.id)&&visible(e)).sort((x,y)=>ord[x.t]-ord[y.t]||x.ev.localeCompare(y.ev));
   return `<ul class="list">${rel.map(e=>{const o=e.a===n.id?byId[e.b]:byId[e.a];
-    return `<li><button data-e="${e.i}"><span class="dot ${e.t}"></span><span><b>${esc(o.name)}</b> <span class="ev">${e.ev}</span><br><span class="t">${esc(e.txt)}</span></span></button></li>`}).join("")||'<li class="kind">Под этим фильтром связей нет.</li>'}</ul>`;
+    return `<li><button data-e="${e.i}"><span class="dot ${e.t}"></span><span><b>${esc(o.en)}</b> <span class="ev">${e.ev}</span><br><span class="t">${esc(e.txt)}</span></span></button></li>`}).join("")||'<li class="kind">Под этим фильтром связей нет.</li>'}</ul>`;
 }
 function renderNote(){
   const s=state.sel;
@@ -1085,13 +1116,13 @@ function renderNote(){
     const list=N.filter(n=>M.has(n.id));
     note.innerHTML=list.length?`<div><span class="kind">Поиск</span><h2>Найдено: ${list.length}</h2></div>
       ${list.length===1?`<p class="how">${esc(list[0].tip)}</p>${connList(list[0])}`:`<p class="kind">Наведи на добавку на графе, чтобы увидеть её связи, или нажми на неё в списке.</p>
-      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:${gcol(n)};margin-top:7px"></span><span><b>${esc(n.name)}</b></span></button></li>`).join("")}</ul>`}`
+      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:${gcol(n)};margin-top:7px"></span><span><b>${esc(n.en)}</b></span></button></li>`).join("")}</ul>`}`
       :`<h2>Ничего не нашлось</h2><p class="kind">Попробуй по-другому: по-русски, по-английски или первые буквы.</p>`;
   } else if(!s&&state.goal){
     const g=G[state.goal],list=N.filter(n=>n.g.includes(state.goal));
-    note.innerHTML=`<div><span class="kind">Цель</span><h2 style="color:var(${g.c})">${g.n}</h2></div>
+    note.innerHTML=`<div><span class="kind">Цель</span><h2 style="color:var(${g.c})">${g.en}</h2></div>
       <p class="how">${esc(g.note)}</p>
-      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:var(${g.c});margin-top:7px"></span><span><b>${esc(n.name)}</b><br><span class="t">${esc(((INFO[n.id]||{}).goals||{})[state.goal]||"")}</span></span></button></li>`).join("")}</ul>`;
+      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:var(${g.c});margin-top:7px"></span><span><b>${esc(n.en)}</b><br><span class="t">${esc(((INFO[n.id]||{}).goals||{})[state.goal]||"")}</span></span></button></li>`).join("")}</ul>`;
   } else if(!s){
     note.innerHTML=`<h2>Коротко</h2><ol class="rules">
       <li>D3, K2 и магний работают в связке. D3 и K2 пей с едой, в которой есть жир.</li>
@@ -1109,33 +1140,33 @@ function renderNote(){
           <li><span class="thick"></span><span>Чем толще линия, тем надёжнее данные (A, B, C)</span></li>
         </ul></section>
       <section class="ns"><h4>Цвет кольца — цель</h4>
-        <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.n}</span></li>`).join("")}</ul></section>
+        <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.en}</span></li>`).join("")}</ul></section>
       <p class="kind">Большие круги — цели. Линия от добавки к кругу значит, что её принимают для этой цели: чем больше линий, тем шире действие. Нажми на добавку: останутся только она и её взаимодействия с другими.</p>`;
   } else if(s.type==="node"){
     const n=byId[s.id];
     const inSet=mySet().has(n.id),inf=INFO[n.id]||{};
-    note.innerHTML=`<div class="nhead"><span class="kind">${KIND(n.id)}</span><h2>${esc(n.name)}</h2></div>
+    note.innerHTML=`<div class="nhead"><span class="kind">${KIND(n.id)} · ${esc(n.name)}</span><h2>${esc(n.en)}</h2>${n.g.length?`<div class="gtags">${n.g.map(k=>`<button class="gtag" data-goal="${k}" style="--c:var(${G[k].c})">${G[k].en}</button>`).join("")}</div>`:""}</div>
       <button class="add" data-toggle="${n.id}" aria-pressed="${inSet}">${inSet?"В моём наборе ✓":"Добавить в набор"}</button>
       ${inf.what?`<section class="ns"><h4>Зачем нужен</h4><p>${esc(inf.what)}</p></section>`:""}
-      ${n.g.length?`<section class="ns"><h4>Для чего принимают</h4><ul class="glist">${n.g.map(k=>`<li><button data-goal="${k}"><span class="gdot" style="background:var(${G[k].c})"></span><span><b style="color:var(${G[k].c})">${G[k].n}</b><span class="t">${esc((inf.goals||{})[k]||"")}</span></span></button></li>`).join("")}</ul></section>`:""}
+      ${n.g.length?`<section class="ns"><h4>Для чего принимают</h4><ul class="glist">${n.g.map(k=>`<li><button data-goal="${k}"><span class="gdot" style="background:var(${G[k].c})"></span><span><b style="color:var(${G[k].c})">${G[k].en}</b><span class="t">${esc((inf.goals||{})[k]||"")}</span></span></button></li>`).join("")}</ul></section>`:""}
       <section class="ns"><h4>Как принимать</h4><p class="how">${esc(n.tip)}</p></section>
       ${inf.forms?`<section class="ns"><h4>Какую форму брать</h4><ul class="forms">${inf.forms.map(([f,g,t])=>`<li><div class="fh"><b>${esc(f)}</b><span class="grade ${g}">${GR[g]}</span></div><span class="t">${esc(t)}</span></li>`).join("")}</ul></section>`:""}
       ${inf.buy?`<section class="ns"><h4>Важно</h4><p>${esc(inf.buy)}</p></section>`:""}
       ${(()=>{const ms=mySet(),comp=E.filter(e=>(e.a===n.id&&ms.has(e.b))||(e.b===n.id&&ms.has(e.a)));
         return comp.length?`<section class="ns"><h4>С твоим набором</h4><ul class="alist">${comp.map(e=>{const o=byId[e.a===n.id?e.b:e.a];
-          return `<li><span class="dot ${e.t}"></span><div><b>${e.t==="syn"?"Хорошо вместе":e.t==="anti"?"Мешают друг другу":"Зависит от дозы"}: ${esc(o.name)}</b><span class="t">${e.t==="anti"?"Пей их в разное время, минимум через 2 часа. ":""}${esc(e.txt)}</span></div></li>`}).join("")}</ul></section>`:""})()}
+          return `<li><span class="dot ${e.t}"></span><div><b>${e.t==="syn"?"Хорошо вместе":e.t==="anti"?"Мешают друг другу":"Зависит от дозы"}: ${esc(o.en)}</b><span class="t">${e.t==="anti"?"Пей их в разное время, минимум через 2 часа. ":""}${esc(e.txt)}</span></div></li>`}).join("")}</ul></section>`:""})()}
       <section class="ns"><h4>Связи</h4>${connList(n)}</section>`;
   } else {
     const e=E[s.i];
-    note.innerHTML=`<div><span class="kind"><span class="dot ${e.t}" style="display:inline-block;margin:0 6px 0 0"></span>${TNAME[e.t]} · данные ${e.ev}</span><h2>${esc(pairName(e))}</h2></div>
+    note.innerHTML=`<div><span class="kind"><span class="dot ${e.t}" style="display:inline-block;margin:0 6px 0 0"></span>${TNAME[e.t]} · данные ${e.ev}</span><h2>${esc(byId[e.a].en)} + ${esc(byId[e.b].en)}</h2></div>
       <p>${esc(e.txt)}</p>
-      <ul class="list"><li><button data-n="${e.a}"><span></span><span>Все связи: <b>${esc(byId[e.a].name)}</b></span></button></li>
-      <li><button data-n="${e.b}"><span></span><span>Все связи: <b>${esc(byId[e.b].name)}</b></span></button></li></ul>`;
+      <ul class="list"><li><button data-n="${e.a}"><span></span><span>Все связи: <b>${esc(byId[e.a].en)}</b></span></button></li>
+      <li><button data-n="${e.b}"><span></span><span>Все связи: <b>${esc(byId[e.b].en)}</b></span></button></li></ul>`;
   }
   note.insertAdjacentHTML("afterbegin",'<button class="nclose" id="nclose" type="button" aria-label="Закрыть">✕</button>');
   const open=!!(state.help||((state.sel||matches()||state.goal)&&!state.panelOff));
   note.classList.toggle("open",open);
-  note.querySelector("#nclose").addEventListener("click",()=>{state.help=false;state.panelOff=true;applyView();renderNote()});
+  note.querySelector("#nclose").addEventListener("click",()=>{state.panelOff=true;resetView()});
   note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
   decorate(note);
   note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
@@ -1717,8 +1748,8 @@ qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&
 
 document.getElementById("mapHelp").addEventListener("click",()=>{state.help=!state.help||!!state.sel;state.sel=null;state.panelOff=false;applyView();renderNote()});
 document.addEventListener("keydown",ev=>{if(ev.key!=="Escape"||document.activeElement===qIn)return;
-  if(note.classList.contains("open")){state.help=false;state.panelOff=true;applyView();renderNote()}else if(state.sel)select(null)});
-document.getElementById("mapBack").addEventListener("click",()=>select(null));
+  if(note.classList.contains("open")||state.sel||state.goal){state.panelOff=true;resetView()}});
+document.getElementById("mapBack").addEventListener("click",resetView);
 
 applyView();renderNote();
 </script>
