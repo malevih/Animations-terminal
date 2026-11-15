@@ -384,10 +384,9 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .spoke.def{stroke-dasharray:2 5}
 .ln.dash{border-top-style:dashed;border-color:var(--muted)}
 .mkl{width:9px;height:9px;border-radius:50%;background:var(--ink);flex:none}
-.node .mk{display:none;fill:var(--ink);stroke:var(--bg);stroke-width:2}
-.node.inset .mk{display:block}
+.node.inset .nm{fill:var(--ink)}
 .deftag{font-size:11.5px;color:var(--muted);border:1px solid var(--faint);border-radius:999px;padding:1px 8px;white-space:nowrap}
-.edge.anti.evC{stroke-width:1.9}.edge.anti.evB{stroke-width:2.4}.edge.anti.evA{stroke-width:3}
+.edge.anti{stroke-opacity:.7}.edge.anti.on{stroke-opacity:1}
 #mineBtn{margin-left:auto}
 .gtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .gtag{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;color:var(--c);border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
@@ -433,9 +432,9 @@ svg#g.ego .spoke,svg#g.find .spoke,svg#g.ego .hub,svg#g.find .hub{opacity:0;poin
       <div class="frow" id="goalRow" role="group" aria-label="Цель" hidden><span class="flabel">Цель</span></div>
       <div class="frow" role="group" aria-label="Связи между добавками">
         <span class="flabel">Связи</span>
-        <button class="chip shw" data-s="anti" aria-pressed="true"><span class="ln anti"></span>Конфликты</button>
-        <button class="chip shw" data-s="all" aria-pressed="false">Все</button>
-        <button class="chip shw" data-s="none" aria-pressed="false">Скрыть</button>
+        <button class="chip shw" data-s="none" aria-pressed="true">Только цели</button>
+        <button class="chip shw" data-s="anti" aria-pressed="false"><span class="ln anti"></span>Конфликты</button>
+        <button class="chip shw" data-s="all" aria-pressed="false">Все связи</button>
         <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
         <button class="chip" id="mineBtn" aria-pressed="false" hidden>Мой набор</button>
       </div>
@@ -823,7 +822,7 @@ Object.keys(G).forEach(k=>{G[k].en=GEN[k]||G[k].n});
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
-const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",show:"anti",mine:false,help:false,panelOff:false};
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",show:"none",mine:false,help:false,panelOff:false};
 const AL={D3:"vitamin d холекальциферол витамин д",K2:"mk-7 mk7 менахинон витамин к",A:"retinol ретинол бета-каротин",E:"tocopherol токоферол",C:"ascorbic аскорбиновая кислота",B1:"thiamine тиамин бенфотиамин",B6:"pyridoxine пиридоксин p5p",B9:"folate folic фолиевая метилфолат",B12:"cobalamin кобаламин метилкобаламин",Ca:"calcium",Mg:"magnesium глицинат цитрат",Zn:"zinc",Cu:"copper",Fe:"iron ферритин",Se:"selenium",I:"iodine",O3:"omega fish oil рыбий жир epa dha омега",Cur:"curcumin turmeric куркума",Pip:"piperine bioperine чёрный перец",Q10:"coq10 убихинон убихинол коэнзим",Cre:"creatine",Gly:"glycine",NAD:"nmn nr никотинамид рибозид",Api:"apigenin ромашка",NAC:"nac n-acetylcysteine ацетилцистеин глутатион",Tau:"taurine",LT:"l-theanine theanine теанин",Ash:"ashwagandha ksm-66",Cof:"coffee caffeine tea кофеин чай",Mel:"melatonin",Gar:"garlic aged kyolic чеснок",Beet:"beet beetroot nitrate нитраты свекла свёкла",Hib:"hibiscus каркаде",Rho:"rhodiola",Saf:"saffron affron",Bac:"bacopa",BA:"beta-alanine бета аланин",Bic:"bicarbonate сода",Prot:"protein whey протеин белок",Psy:"psyllium клетчатка",Pro:"probiotic пробиотик",GTE:"green tea egcg катехины зелёный чай",Coc:"cocoa cacao flavanols какао флаванолы",Res:"resveratrol ресвератрол"};
 const norm=x=>x.toLowerCase().replace(/ё/g,"е");
 N.forEach(n=>{n.hay=norm([n.name,n.s,n.id,AL[n.id]||""].join(" "));n.words=n.hay.split(/[\s()+,.\-]+/).filter(Boolean)});
@@ -967,9 +966,9 @@ function buildNodes(){
     else if(k===1) el("circle",{class:"arc",r:rr,style:`stroke:var(${G[n.g[0]].c})`,"stroke-width":3.5},inn);
     else n.g.forEach((gk,j)=>{const a0=-Math.PI/2+j*2*Math.PI/k+gap/2,a1=a0+2*Math.PI/k-gap;
       el("path",{class:"arc",d:arc(rr,a0,a1),style:`stroke:var(${G[gk].c})`,"stroke-width":3.5},inn)});
-    el("circle",{class:"core",r:R},inn);el("circle",{class:"mk",r:4.5,cx:(R*.78).toFixed(1),cy:(-R*.78).toFixed(1)},inn);
+    el("circle",{class:"core",r:R},inn);
     const s=el("text",{class:"sym"},inn);s.textContent=n.s;if(n.s.length>2)s.style.fontSize="10px";
-    const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.en;
+    const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.en;n.t_el=t;
     n.g_el=g;
     g.addEventListener("pointerdown",ev=>startDrag(ev,n));
     g.addEventListener("pointerenter",()=>{state.hover=n.id;applyView()});
@@ -1085,7 +1084,7 @@ function applyView(){
     const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
-    n.g_el.classList.toggle("match",!!M&&M.has(n.id));n.g_el.classList.toggle("inset",ms.has(n.id));
+    n.g_el.classList.toggle("match",!!M&&M.has(n.id));n.g_el.classList.toggle("inset",ms.has(n.id));n.t_el.textContent=(ms.has(n.id)?"✓ ":"")+n.en;
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
   // hubs and spokes: a hovered supplement lights its goals, a chosen goal lights its supplements
@@ -1158,7 +1157,7 @@ function renderNote(){
           <li><span class="ln warn"></span><span>Жёлтый пунктир — мешают только в больших дозах</span></li>
           <li><span class="thick"></span><span>Чем толще линия, тем надёжнее данные (A, B, C)</span></li>
           <li><span class="ln dash"></span><span>Пунктир к цели — помогает только при дефиците</span></li>
-          <li><span class="mkl"></span><span>Белая точка — добавка в твоём наборе</span></li>
+          <li><span style="width:16px;text-align:center;color:var(--ink)">✓</span><span>Галочка перед названием — добавка в твоём наборе</span></li>
         </ul></section>
       <section class="ns"><h4>Цвет кольца — цель</h4>
         <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.en}</span></li>`).join("")}</ul></section>
