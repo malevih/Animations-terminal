@@ -376,6 +376,11 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .trow.open .tx{white-space:normal;color:var(--ink)}
 .trow .go{display:none;grid-column:3;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .trow.open .go{display:block}
+.ntitle{display:flex;align-items:center;gap:10px;padding-right:40px}
+.addp{all:unset;cursor:pointer;flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--muted);display:grid;place-items:center;font-size:17px;line-height:1;color:var(--ink)}
+.addp:hover{border-color:var(--ink)}
+.addp[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-size:14px}
+.addp:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .gtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .gtag{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;color:var(--c);border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
 .gtag:hover{background:color-mix(in srgb,var(--c) 28%,transparent)}
@@ -1145,8 +1150,7 @@ function renderNote(){
   } else if(s.type==="node"){
     const n=byId[s.id];
     const inSet=mySet().has(n.id),inf=INFO[n.id]||{};
-    note.innerHTML=`<div class="nhead"><span class="kind">${KIND(n.id)} · ${esc(n.name)}</span><h2>${esc(n.en)}</h2>${n.g.length?`<div class="gtags">${n.g.map(k=>`<button class="gtag" data-goal="${k}" style="--c:var(${G[k].c})">${G[k].en}</button>`).join("")}</div>`:""}</div>
-      <button class="add" data-toggle="${n.id}" aria-pressed="${inSet}">${inSet?"В моём наборе ✓":"Добавить в набор"}</button>
+    note.innerHTML=`<div class="nhead"><span class="kind">${KIND(n.id)} · ${esc(n.name)}</span><div class="ntitle"><h2>${esc(n.en)}</h2><button class="addp" data-toggle="${n.id}" aria-pressed="${inSet}" title="${inSet?"В моём наборе — убрать":"Добавить в набор"}" aria-label="${inSet?"Убрать из набора":"Добавить в набор"}">${inSet?"✓":"+"}</button></div>${n.g.length?`<div class="gtags">${n.g.map(k=>`<button class="gtag" data-goal="${k}" style="--c:var(${G[k].c})">${G[k].en}</button>`).join("")}</div>`:""}</div>
       ${inf.what?`<section class="ns"><h4>Зачем нужен</h4><p>${esc(inf.what)}</p></section>`:""}
       ${n.g.length?`<section class="ns"><h4>Для чего принимают</h4><ul class="glist">${n.g.map(k=>`<li><button data-goal="${k}"><span class="gdot" style="background:var(${G[k].c})"></span><span><b style="color:var(${G[k].c})">${G[k].en}</b><span class="t">${esc((inf.goals||{})[k]||"")}</span></span></button></li>`).join("")}</ul></section>`:""}
       <section class="ns"><h4>Как принимать</h4><p class="how">${esc(n.tip)}</p></section>
