@@ -371,6 +371,21 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .nb-s{font-family:var(--f-mono);font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
 .nb-s.new{color:var(--warn)}.nb-s.done{color:var(--good)}
 .nb ul{margin:0;padding-left:18px}.nb li{margin:4px 0}
+.trow .tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow.open{background:var(--panel)}
+.trow.open .tx{white-space:normal;color:var(--ink)}
+.trow .go{display:none;grid-column:3;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.trow.open .go{display:block}
+.tgroup{display:flex;gap:8px;align-items:center;padding:20px 0 6px;font-weight:600;font-size:14px}
+.tgroup .dot{margin:0}
+.tgroup[hidden]{display:none}
+.glab{font:600 12px var(--f-body);text-anchor:middle;opacity:.45;pointer-events:none;transition:opacity .25s}
+svg#g.ego .glab,svg#g.find .glab{opacity:0}
+.edge.syn{stroke-opacity:.3;animation:none}
+.edge.syn.on{stroke-opacity:1;animation:flow 1.4s linear infinite}
+.edge.warn{stroke-opacity:.6}.edge.warn.on{stroke-opacity:1}
+.mapback{position:absolute;top:12px;left:12px;background:var(--panel)}
+@media (max-width:720px){.trow .go{grid-column:1/-1}}
 </style>
 <style>*{box-sizing:border-box}html,body{margin:0}img{max-width:100%}</style>
 </head>
@@ -409,6 +424,7 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
     <div class="stage" id="stage">
       <svg id="g" aria-label="Граф взаимодействий добавок"></svg>
       <button class="chip sm maphelp" id="mapHelp" type="button">Как читать карту</button>
+      <button class="chip sm mapback" id="mapBack" type="button" hidden>← Вся карта</button>
       <aside class="note" id="note" aria-live="polite"></aside>
     </div>
 
@@ -655,7 +671,7 @@ const INFO={
   goals:{immune:"В метаанализах немного снижают число простуд и их длительность. Ещё помогают избежать поноса при приёме антибиотиков."},
   forms:[["Изученные штаммы (L. rhamnosus GG, S. boulardii, B. lactis BB-12)","best","Под каждую задачу есть свои исследованные штаммы."],["Кефир, йогурт, квашеная капуста","best","Живые продукты тоже дают бактерии и разнообразие микрофлоры."],["Капсулы «50 миллиардов, 20 штаммов»","bad","Большое число на упаковке не означает больше пользы."]],
   buy:"При тяжёлом иммунодефиците — только по назначению врача."},
- D3:{what:"Гормоноподобный витамин. Управляет всасыванием кальция, работой иммунных клеток и мышц, рецепторы к нему есть почти во всех тканях. Кожа делает его на солнце, но в Украине с октября по март солнце стоит слишком низко.",
+ D3:{what:"Гормоноподобный витамин. Управляет всасыванием кальция, работой иммунных клеток и мышц, рецепторы к нему есть почти во всех тканях. Кожа делает его на солнце, но на широтах выше примерно 40° с октября по март солнце стоит слишком низко.",
   goals:{bones:"Без D3 кальций из еды почти не всасывается, и кости со временем теряют плотность. У пожилых с дефицитом D3 вместе с кальцием снижает риск переломов.",immune:"При дефиците ежедневный приём снижает риск простуд и ОРВИ, это показал большой метаанализ. Если уровень в норме, эффекта почти нет."},
   forms:[["D3 (холекальциферол)","best","Та же форма, что делает кожа. Поднимает уровень в крови сильнее и дольше, чем D2."],["D3 в масле или в капсуле с маслом","best","Всасывается лучше сухих таблеток."],["D2 (эргокальциферол)","bad","Растительная форма, работает слабее и короче."],["Ударные дозы раз в месяц (50 000 МЕ и больше)","bad","Работают хуже ежедневных, а очень большие разовые дозы у пожилых даже повышали риск падений."]],
   buy:"Целевой уровень 25(OH)D обычно 30–60 нг/мл (75–150 нмоль/л). Пересдай анализ через 2–3 месяца после начала приёма."},
@@ -699,10 +715,10 @@ const INFO={
   goals:{energy:"При дефиците железа (низкий ферритин) бывают усталость, одышка, выпадение волос и холодные руки, даже если гемоглобин ещё в норме. После восполнения это проходит."},
   forms:[["Бисглицинат железа","best","Хорошо всасывается, реже тошнота и запоры."],["Приём через день","best","Всасывается больше: после дозы печень почти на сутки тормозит всасывание гормоном гепсидином."],["Сульфат железа","ok","Дешёвый и изученный стандарт, но часто бьёт по желудку."],["Железо с медленным высвобождением","bad","Всасывается хуже, переплата за технологию."]],
   buy:"Сначала сдай ферритин. Ниже 30 нг/мл — дефицит. Если выше 100–150 без явной причины, железо пить нельзя."},
- Se:{what:"Нужен для щитовидной железы и антиоксидантных ферментов. Почвы во многих странах Европы, включая Украину, бедны селеном, поэтому дефицит встречается.",
+ Se:{what:"Нужен для щитовидной железы и антиоксидантных ферментов. Почвы во многих регионах, включая большую часть Европы, бедны селеном, поэтому дефицит встречается.",
   goals:{immune:"Нужен для работы иммунных клеток. При дефиците организм хуже справляется с вирусами. Если уровень в норме, добавка не помогает."},
   forms:[["Селенометионин","best","Хорошо усваивается, запасается в тканях."],["Дрожжи с селеном","ok","Рабочий вариант, но состав плавает от партии к партии."],["Селенит натрия","ok","Усваивается хуже, но в обычных дозах безопасен."],["Бразильский орех","ok","1–2 ореха дают суточную норму, но содержание сильно плавает."],["Больше 200 мкг в день надолго","bad","Риск отравления: выпадение волос, ломкие ногти. По некоторым данным, растёт риск диабета."]]},
- I:{what:"Из йода щитовидная железа делает гормоны, которые управляют обменом веществ, энергией и температурой тела. Украина — регион с дефицитом йода, поэтому полезна йодированная соль.",
+ I:{what:"Из йода щитовидная железа делает гормоны, которые управляют обменом веществ, энергией и температурой тела. Во многих регионах йода в еде и воде мало, поэтому полезна йодированная соль.",
   goals:{energy:"При нехватке йода щитовидная железа работает хуже: усталость, зябкость, лишний вес, сухая кожа. Но если ТТГ в норме, добавка энергии не прибавит."},
   forms:[["Йодированная соль","best","Самый простой способ закрыть норму. Соли в конце готовки, при нагреве йод улетучивается."],["Йодид калия","best","Стандартная форма в таблетках, 100–150 мкг."],["Ламинария, келп","bad","Йода в них может быть в десятки раз больше нормы, а это вредит щитовидной железе."]]},
  O3:{what:"Жирные кислоты EPA и DHA — строительный материал мембран мозга, сетчатки и сердца. Организм почти не умеет делать их сам. Главный источник — жирная морская рыба: скумбрия, сельдь, лосось, сардины.",
@@ -862,16 +878,30 @@ goalRow.addEventListener("click",ev=>{const b=ev.target.closest(".goal");if(!b)r
   state.goal=b.dataset.g||null;state.sel=null;state.help=false;state.panelOff=false;goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView();renderNote()});
 
 /* ---------- graph ---------- */
+const RING=["sleep","brain","energy","immune","bones","heart","infl","long"],GA={};
+let GLAB=null;
+// every goal owns a spot on a ring; a node is pulled toward its goals (the first one counts most)
+function anchors(){
+  RING.forEach((k,i)=>{const a=-Math.PI/2+i/RING.length*Math.PI*2;GA[k]={a,x:W/2+Math.cos(a)*W*.31,y:H/2+Math.sin(a)*H*.33}});
+  N.forEach(n=>{if(!n.g.length){n.ax=W/2;n.ay=H/2;return}
+    let sx=0,sy=0,sw=0;n.g.forEach((k,j)=>{const w=j?1:2.5;sx+=GA[k].x*w;sy+=GA[k].y*w;sw+=w});n.ax=sx/sw;n.ay=sy/sw});
+  if(GLAB)RING.forEach(k=>{const p=GA[k],t=GLAB[k];
+    const cl=(v,m)=>Math.max(-m,Math.min(m,v));
+    t.setAttribute("x",(W/2+cl(Math.cos(p.a)*W*.62,W/2-52)).toFixed(0));
+    t.setAttribute("y",(H/2+cl(Math.sin(p.a)*H*.62,H/2-20)+4).toFixed(0));
+    t.style.display=W<600?"none":""});
+}
 function measure(){
   const ow=W,oh=H,w=Math.max(300,stage.clientWidth);
   W=w;H=w<600?Math.round(Math.max(900,w*2.35)):Math.round(Math.min(960,Math.max(700,w*.78)));S=Math.min(1,Math.max(.6,W/780));R=Math.round(17*Math.max(.78,S));
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.height=H+"px";anchors();
   return [ow,oh];
 }
 measure();
-N.forEach((n,i)=>{const a=i/N.length*Math.PI*2,r=Math.min(W,H)*.38;n.x=W/2+Math.cos(a)*r;n.y=H/2+Math.sin(a)*r;n.vx=n.vy=0});
+N.forEach((n,i)=>{const a=i*2.4;n.x=n.ax+Math.cos(a)*50;n.y=n.ay+Math.sin(a)*50;n.vx=n.vy=0;n.tx=n.ty=null});
 
-const gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
+const gL=el("g",{},svg),gE=el("g",{},svg),gH=el("g",{},svg),gN=el("g",{},svg);
+GLAB={};RING.forEach(k=>{const t=el("text",{class:"glab",style:`fill:var(${G[k].c})`},gL);t.textContent=G[k].n;GLAB[k]=t});anchors();
 E.forEach(e=>{
   e.line=el("line",{class:`edge ${e.t} ev${e.ev}`},gE);
   e.hit=el("line",{class:"hit"},gH);
@@ -904,9 +934,11 @@ buildNodes();
 
 function visible(e){return (state.filter==="all"||state.filter===e.t)&&!(state.hideC&&e.ev==="C")}
 
-let KEEP=null,keepKey=""; // search results: only these nodes move and gather in the centre
+let KEEP=null,keepKey="",FOCUS=false,focusKey=""; // search results: only these nodes move and gather in the centre
 function tick(a){
-  const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2;
+  // focus mode: the rest of the map is frozen, the chosen group glides to its ego layout
+  if(FOCUS){N.forEach(n=>{if(n.fx!=null){n.x=n.fx;n.y=n.fy}else if(n.tx!=null){n.x+=(n.tx-n.x)*.2;n.y+=(n.ty-n.y)*.2}});return}
+  const REP=30000*S*S,L=135*S,MIN=(R*2+26)**2,GRAV=.085;
   for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){
     const p=N[i],q=N[j];if(KEEP&&(!KEEP.has(p.id)||!KEEP.has(q.id)))continue;
     let dx=q.x-p.x,dy=q.y-p.y,d2=dx*dx+dy*dy;
@@ -915,16 +947,16 @@ function tick(a){
     p.vx-=dx/d*f;p.vy-=dy/d*f;q.vx+=dx/d*f;q.vy+=dy/d*f;
   }
   E.forEach(e=>{if(KEEP&&(!KEEP.has(e.a)||!KEEP.has(e.b)))return;const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
-    const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*.055*a;
+    const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*(KEEP?.055:.022)*a;
     p.vx+=dx*k;p.vy+=dy*k;q.vx-=dx*k;q.vy-=dy*k});
-  const padT=R+10,padB=R+28,cp=KEEP?5:1;
+  const padT=R+34,padB=R+62,cp=KEEP?5:1;
   N.forEach(n=>{
     if(KEEP&&!KEEP.has(n.id))return;
     const cy=KEEP?Math.min(H/2,330):H/2;
-    n.vx+=(W/2-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a;
+    if(KEEP){n.vx+=(W/2-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}else{n.vx+=(n.ax-n.x)*GRAV*a;n.vy+=(n.ay-n.y)*GRAV*a}
     if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
     n.vx*=.6;n.vy*=.6;n.x+=n.vx;n.y+=n.vy;
-    const padX=Math.max(R+8,n.name.length*3.2+6); // keep the whole label on screen
+    const padX=Math.max(R+8,n.name.length*3.2+6,W>=900?156:0); // keep the whole label on screen
     n.x=Math.min(W-padX,Math.max(padX,n.x));n.y=Math.min(H-padB,Math.max(padT,n.y));
   });
 }
@@ -951,7 +983,7 @@ svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",e
 // pointer capture retargets the click after a node tap to the svg; ignore that one
 svg.addEventListener("click",ev=>{if(ev.target===svg&&performance.now()-lastNodeUp>400)select(null)});
 
-function select(s){state.sel=s;if(s)state.help=false;applyView();renderNote();note.scrollTop=0}
+function select(s){state.sel=s;if(s){state.help=false;state.panelOff=false}applyView();renderNote();note.scrollTop=0}
 function focusSets(){
   const M=matches();
   let s=state.sel||(state.hover?{type:"node",id:state.hover}:null);
@@ -964,26 +996,50 @@ function focusSets(){
   return {rn:null,re:null,s:null,M:null};
 }
 function applyView(){
-  const {rn,re,s,M}=focusSets(),focus=!!s;
+  const {rn,re,s,M}=focusSets(),focus=!!s,ego=!!state.sel;
+  layoutFocus(ego?state.sel:null,re);
+  svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M);
+  document.getElementById("mapBack").hidden=!ego;document.getElementById("mapHelp").hidden=ego;
   // while searching, everything outside the matches (and the hovered node's partners) disappears entirely
   const keep=M?new Set([...M,...(rn||[])]):null;
   const k=M?[...M].sort().join():"";if(k!==keepKey){keepKey=k;KEEP=M&&M.size>1?M:null;heat(.6)}
   E.forEach(e=>{
     const inRe=!!re&&re.has(e.i);
     let show=visible(e)||(!!s&&s.type==="edge"&&s.i===e.i);
-    if(M&&!inRe)show=false;
+    if((M||ego)&&!inRe)show=false;
     if(state.noEdges&&!(focus&&inRe))show=false;
     e.line.classList.toggle("hide",!show);e.hit.classList.toggle("hide",!show);
     e.line.classList.toggle("dim",show&&!!re&&!inRe);e.line.classList.toggle("on",inRe);
   });
   N.forEach(n=>{
-    const gone=!!keep&&!keep.has(n.id);
+    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
     n.g_el.classList.toggle("match",!!M&&M.has(n.id));
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
-  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});
+  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});document.querySelectorAll(".tgroup").forEach(g=>{g.hidden=state.filter!=="all"&&state.filter!==g.dataset.t});
+}
+function layoutFocus(s,re){
+  const wide=innerWidth>900,panel=wide&&!state.panelOff?Math.min(400,W-24)+24:0;
+  const key=s?[s.type,s.type==="node"?s.id:s.i,state.filter,state.hideC,W,H,panel].join():"";
+  if(key===focusKey)return;focusKey=key;
+  N.forEach(n=>{n.tx=n.ty=null});FOCUS=!!s;
+  if(!s){heat(.5);return}
+  const cx=(W-panel)/2,cy=wide?H/2:Math.min(H/2,300);
+  if(s.type==="edge"){const e=E[s.i],d=Math.min(110,cx-70);
+    byId[e.a].tx=cx-d;byId[e.b].tx=cx+d;byId[e.a].ty=byId[e.b].ty=cy;heat(.5);return}
+  const c=byId[s.id];c.tx=cx;c.ty=cy;
+  // partners sit on an ellipse around the centre, grouped by type: help, then dose-dependent, then clash
+  const to={syn:0,warn:1,anti:2};
+  const nb=E.filter(e=>re.has(e.i)).map(e=>({o:byId[e.a===s.id?e.b:e.a],t:e.t})).sort((x,y)=>to[x.t]-to[y.t]);
+  const groups=new Set(nb.map(x=>x.t)).size,slots=nb.length+(groups>1?groups:0);
+  const sc=nb.length<=3?.55:nb.length<=6?.75:1;
+  const rx=Math.max(92,Math.min(270,cx-76))*sc,ry=Math.max(110,Math.min(250,cy-R-44))*sc;
+  let i=0,last=null;
+  nb.forEach(x=>{if(groups>1&&last!==null&&x.t!==last)i++;last=x.t;
+    const a=-Math.PI/2+(i+.5)/slots*Math.PI*2;x.o.tx=cx+Math.cos(a)*rx;x.o.ty=cy+Math.sin(a)*ry;i++});
+  heat(.5);
 }
 function connList(n){
   const ord={syn:0,anti:1,warn:2};
@@ -1023,7 +1079,7 @@ function renderNote(){
         </ul></section>
       <section class="ns"><h4>Цвет кольца — цель</h4>
         <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.n}</span></li>`).join("")}</ul></section>
-      <p class="kind">Нажми на цель сверху, чтобы оставить только её добавки, или на кружок, чтобы открыть карточку.</p>`;
+      <p class="kind">Добавки стоят рядом со своей целью, подписи целей по краям карты. Нажми на кружок: останутся только он и его связи.</p>`;
   } else if(s.type==="node"){
     const n=byId[s.id];
     const inSet=mySet().has(n.id),inf=INFO[n.id]||{};
@@ -1046,9 +1102,9 @@ function renderNote(){
       <li><button data-n="${e.b}"><span></span><span>Все связи: <b>${esc(byId[e.b].name)}</b></span></button></li></ul>`;
   }
   note.insertAdjacentHTML("afterbegin",'<button class="nclose" id="nclose" type="button" aria-label="Закрыть">✕</button>');
-  const open=!!(state.sel||state.help||((matches()||state.goal)&&!state.panelOff));
+  const open=!!(state.help||((state.sel||matches()||state.goal)&&!state.panelOff));
   note.classList.toggle("open",open);
-  note.querySelector("#nclose").addEventListener("click",()=>{state.sel=null;state.help=false;state.panelOff=true;applyView();renderNote()});
+  note.querySelector("#nclose").addEventListener("click",()=>{state.help=false;state.panelOff=true;applyView();renderNote()});
   note.querySelectorAll("[data-e]").forEach(b=>b.addEventListener("click",()=>select({type:"edge",i:+b.dataset.e})));
   decorate(note);
   note.querySelectorAll("[data-n]").forEach(b=>b.addEventListener("click",()=>select({type:"node",id:b.dataset.n})));
@@ -1062,15 +1118,20 @@ const sortSt={k:"type",d:1};
 function renderTable(){
   const tv={syn:0,anti:1,warn:2};
   const cmp={type:(x,y)=>tv[x.t]-tv[y.t]||x.ev.localeCompare(y.ev),pair:(x,y)=>pairName(x).localeCompare(pairName(y),"ru"),ev:(x,y)=>x.ev.localeCompare(y.ev)||tv[x.t]-tv[y.t]};
-  document.getElementById("table").innerHTML=[...E].sort((x,y)=>cmp[sortSt.k](x,y)*sortSt.d).map(e=>
-    `<button class="trow" data-i="${e.i}"><span class="pr">${esc(pairName(e))}</span><span class="ty"><span class="dot ${e.t}"></span>${TNAME[e.t]}</span><span class="tx">${esc(e.txt)}</span><span class="ev">${e.ev}</span></button>`).join("");
+  const cnt={};E.forEach(e=>{cnt[e.t]=(cnt[e.t]||0)+1});let last=null;
+  document.getElementById("table").innerHTML=[...E].sort((x,y)=>cmp[sortSt.k](x,y)*sortSt.d).map(e=>{
+    const head=sortSt.k==="type"&&e.t!==last?`<div class="tgroup" data-t="${e.t}"><span class="dot ${e.t}"></span>${TNAME[e.t]} <span class="kind">${cnt[e.t]}</span></div>`:"";last=e.t;
+    return head+`<button class="trow" data-i="${e.i}" aria-expanded="false"><span class="pr">${esc(pairName(e))}</span><span class="ty"><span class="dot ${e.t}"></span>${TNAME[e.t]}</span><span class="tx">${esc(e.txt)}</span><span class="ev">${e.ev}</span><span class="go">Показать на карте →</span></button>`}).join("");
   document.querySelectorAll("[data-sort]").forEach(b=>{const on=b.dataset.sort===sortSt.k;b.setAttribute("aria-pressed",on);b.querySelector("i").textContent=on?(sortSt.d>0?"▲":"▼"):""});
-  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});
+  document.querySelectorAll(".trow").forEach(r=>{r.hidden=!visible(E[+r.dataset.i])});document.querySelectorAll(".tgroup").forEach(g=>{g.hidden=state.filter!=="all"&&state.filter!==g.dataset.t});
 }
 document.querySelectorAll("[data-sort]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.sort;if(sortSt.k===k)sortSt.d*=-1;else{sortSt.k=k;sortSt.d=1}renderTable()}));
 renderTable();
 decorate(document.getElementById("table"));
-document.getElementById("table").addEventListener("click",ev=>{const r=ev.target.closest(".trow");if(!r)return;select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})});
+document.getElementById("table").addEventListener("click",ev=>{const r=ev.target.closest(".trow");if(!r)return;
+  if(ev.target.closest(".go")){select({type:"edge",i:+r.dataset.i});stage.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});return}
+  const on=!r.classList.contains("open");document.querySelectorAll(".trow.open").forEach(x=>{x.classList.remove("open");x.setAttribute("aria-expanded","false")});
+  r.classList.toggle("open",on);r.setAttribute("aria-expanded",on)});
 
 document.querySelectorAll(".rel").forEach(b=>b.addEventListener("click",()=>{
   state.filter=b.dataset.f;document.querySelectorAll(".rel").forEach(x=>x.setAttribute("aria-pressed",x===b));
@@ -1088,8 +1149,8 @@ const PLAN=[
 ];
 // Priority stacks: [id, dose/note, slot, optional?]
 const STACKS=[
- {id:"base",t:"База",who:"Почти всем, кто живёт в Украине и не сдавал анализы",
-  why:"Закрывает самые частые дефициты: на широте Киева с октября по март солнца для витамина D не хватает, рыбу едят редко, магния в рационе обычно мало. Креатин — одна из самых изученных добавок вообще, помогает и мышцам, и мозгу.",
+ {id:"base",t:"База",who:"Почти всем, кто живёт в умеренных широтах и не сдавал анализы",
+  why:"Закрывает самые частые дефициты: в умеренных широтах с октября по март солнца для витамина D не хватает, рыбу едят редко, магния в рационе обычно мало. Креатин — одна из самых изученных добавок вообще, помогает и мышцам, и мозгу.",
   items:[["D3","2000 МЕ, потом по анализу","meal"],["K2","100 мкг, часто в одной капсуле с D3","meal"],["O3","1–2 г EPA+DHA, если рыба реже 2 раз в неделю","meal"],["Mg","200–400 мг глицината","bed"],["Cre","3–5 г моногидрата","any"]]},
  {id:"sleep",t:"Сон",who:"Если долго засыпаешь или просыпаешься ночью",
   why:"Магний и глицин имеют лучшие данные и почти без побочек. L-теанин добавь, если уснуть мешает тревожность. Но сначала режим: свет утром, кофе не позже 14:00, прохладная тёмная спальня. Он даст больше любой капсулы.",
@@ -1619,7 +1680,9 @@ qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&
   if(ev.key==="Escape")setQ("")});
 
 document.getElementById("mapHelp").addEventListener("click",()=>{state.help=!state.help||!!state.sel;state.sel=null;state.panelOff=false;applyView();renderNote()});
-document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&note.classList.contains("open")&&document.activeElement!==qIn){state.sel=null;state.help=false;state.panelOff=true;applyView();renderNote()}});
+document.addEventListener("keydown",ev=>{if(ev.key!=="Escape"||document.activeElement===qIn)return;
+  if(note.classList.contains("open")){state.help=false;state.panelOff=true;applyView();renderNote()}else if(state.sel)select(null)});
+document.getElementById("mapBack").addEventListener("click",()=>select(null));
 
 applyView();renderNote();
 </script>
