@@ -431,8 +431,8 @@ svg#g.ego .spoke,svg#g.find .spoke,svg#g.ego .hub,svg#g.find .hub{opacity:0;poin
     <div class="filters">
       <div class="frow" id="goalRow" role="group" aria-label="Цель" hidden><span class="flabel">Цель</span></div>
       <div class="frow" role="group" aria-label="Связи между добавками">
-        <span class="flabel">Связи</span>
-        <button class="chip shw" data-s="none" aria-pressed="true">Только цели</button>
+        <span class="flabel">Вид</span>
+        <button class="chip shw" data-s="none" aria-pressed="true">По целям</button>
         <button class="chip shw" data-s="anti" aria-pressed="false"><span class="ln anti"></span>Конфликты</button>
         <button class="chip shw" data-s="all" aria-pressed="false">Все связи</button>
         <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
@@ -980,7 +980,7 @@ buildNodes();
 
 function visible(e){return (state.filter==="all"||state.filter===e.t)&&!(state.hideC&&e.ev==="C")}
 
-let KEEP=null,keepKey="",FOCUS=false,focusKey=""; // search results: only these nodes move and gather in the centre
+let KEEP=null,keepKey="",FOCUS=false,focusKey="",LM=false; // search results: only these nodes move and gather in the centre
 function tick(a){
   // focus mode: the rest of the map is frozen, the chosen group glides to its ego layout
   if(FOCUS){N.forEach(n=>{if(n.fx!=null){n.x=n.fx;n.y=n.fy}else if(n.tx!=null){n.x+=(n.tx-n.x)*.2;n.y+=(n.ty-n.y)*.2}});
@@ -994,13 +994,13 @@ function tick(a){
     const d=Math.sqrt(d2),f=REP*a/Math.max(d2,MIN);
     p.vx-=dx/d*f;p.vy-=dy/d*f;q.vx+=dx/d*f;q.vy+=dy/d*f;
   }
-  if(KEEP)E.forEach(e=>{if(!KEEP.has(e.a)||!KEEP.has(e.b))return;const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
+  if(KEEP)E.forEach(e=>{if(!KEEP.has(e.a)||!KEEP.has(e.b))return;if(LM&&(!visible(e)||(state.show==="anti"&&e.t!=="anti")))return;const p=byId[e.a],q=byId[e.b],len=e.t==="syn"?L:L*1.35;
     const dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,k=(d-len)/d*.055*a;
     p.vx+=dx*k;p.vy+=dy*k;q.vx-=dx*k;q.vy-=dy*k});
-  const padT=R+(W<600?48:10),padB=R+28,cp=KEEP?5:1;
+  const padT=R+(W<600?48:10),padB=R+28,cp=KEEP?(LM?(state.show==="all"?1:2.4):5):1;
   N.forEach(n=>{
     if(KEEP&&!KEEP.has(n.id))return;
-    const cy=KEEP?Math.min(H/2,330):H/2;
+    const cy=KEEP&&!LM?Math.min(H/2,330):H/2;
     if(KEEP||!n.g.length){n.vx+=((KEEP&&innerWidth>900&&note.classList.contains("open")?(W-424)/2:W/2)-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}
     else n.g.forEach(k=>{const h=GA[k],dx=h.x-n.x,dy=h.y-n.y,d=Math.hypot(dx,dy)||1,f=(d-LH)/d*.07*a;n.vx+=dx*f;n.vy+=dy*f});
     if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
@@ -1066,22 +1066,24 @@ function applyView(){
   const {rn,re,s,M}=focusSets(),focus=!!s,ego=!!state.sel,gf=!ego&&!M&&!!state.goal;
   const gset=gf?new Set(N.filter(n=>n.g.includes(state.goal)).map(n=>n.id)):null;
   layoutFocus(ego?state.sel:gf?{type:"goal",k:state.goal}:null,re);
-  svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M);svg.classList.toggle("gf",gf);
+  svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M||(!ego&&!gf&&state.show!=="none"));svg.classList.toggle("gf",gf);
   document.getElementById("mapBack").hidden=!(ego||gf||state.mine);document.getElementById("mapHelp").hidden=ego||gf||state.mine;
   // while searching, everything outside the matches (and the hovered node's partners) disappears entirely
   const keep=M?new Set([...M,...(rn||[])]):null;
-  const k=M?[...M].sort().join():"";if(k!==keepKey){keepKey=k;KEEP=M&&M.size>1?M:null;heat(.6)}
+  const lm=!M&&!ego&&!gf&&state.show!=="none",inMode=e=>visible(e)&&(state.show==="all"||e.t==="anti");
+  const lset=lm?new Set(E.filter(inMode).flatMap(e=>[e.a,e.b])):null,ks=M?(M.size>1?M:null):lset;
+  const k=(lm?"L"+state.show+state.hideC:"")+(M?[...M].sort().join():"");if(k!==keepKey){keepKey=k;KEEP=ks;LM=lm;heat(lm?1:.6)}
   E.forEach(e=>{
     const inRe=!!re&&re.has(e.i);
     let show=visible(e)||(!!s&&s.type==="edge"&&s.i===e.i);
     if((M||ego)&&!inRe)show=false;
     if(gf&&!(gset.has(e.a)&&gset.has(e.b)))show=false;
-    if(!M&&!(focus&&inRe)&&(state.show==="none"||(state.show==="anti"&&e.t!=="anti")))show=false;
+    if(lm){if(!inMode(e))show=false}else if(!M&&!(focus&&inRe))show=false;
     e.line.classList.toggle("hide",!show);e.hit.classList.toggle("hide",!show);
     e.line.classList.toggle("dim",show&&!!re&&!inRe);e.line.classList.toggle("on",inRe);
   });
   N.forEach(n=>{
-    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id));
+    const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id))||(lm&&!lset.has(n.id));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
     n.g_el.classList.toggle("match",!!M&&M.has(n.id));n.g_el.classList.toggle("inset",ms.has(n.id));n.t_el.textContent=(ms.has(n.id)?"✓ ":"")+n.en;
