@@ -381,6 +381,14 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .addp:hover{border-color:var(--ink)}
 .addp[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-size:14px}
 .addp:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.spoke.def{stroke-dasharray:2 5}
+.ln.dash{border-top-style:dashed;border-color:var(--muted)}
+.mkl{width:9px;height:9px;border-radius:50%;background:var(--ink);flex:none}
+.node .mk{display:none;fill:var(--ink);stroke:var(--bg);stroke-width:2}
+.node.inset .mk{display:block}
+.deftag{font-size:11.5px;color:var(--muted);border:1px solid var(--faint);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.edge.anti.evC{stroke-width:1.9}.edge.anti.evB{stroke-width:2.4}.edge.anti.evA{stroke-width:3}
+#mineBtn{margin-left:auto}
 .gtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .gtag{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;color:var(--c);border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
 .gtag:hover{background:color-mix(in srgb,var(--c) 28%,transparent)}
@@ -388,7 +396,7 @@ abbr.term:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 svg#g.gf .hub.dim,svg#g.gf .spoke.dim{opacity:0;pointer-events:none}
 .tgrp{display:flex;gap:8px;align-items:center;padding:20px 0 6px;font-weight:600;font-size:14px}
 .tgrp .dot{margin:0}
-.spoke{stroke-width:1.2;stroke-opacity:.38;stroke-linecap:round;transition:opacity .25s,stroke-opacity .25s;pointer-events:none}
+.spoke{stroke-width:1.2;stroke-opacity:.3;stroke-linecap:round;transition:opacity .25s,stroke-opacity .25s;pointer-events:none}
 .spoke.on{stroke-opacity:.95;stroke-width:1.8}
 .hub{cursor:grab;touch-action:none;transition:opacity .25s}
 .hub circle{fill-opacity:.13;stroke-width:1.5;transition:fill-opacity .2s}
@@ -422,15 +430,14 @@ svg#g.ego .spoke,svg#g.find .spoke,svg#g.ego .hub,svg#g.find .hub{opacity:0;poin
   <!-- GRAPH -->
   <section class="view" id="view-graph" role="tabpanel" aria-labelledby="tab-graph">
     <div class="filters">
-      <div class="frow" id="goalRow" role="group" aria-label="Цель"><span class="flabel">Цель</span></div>
-      <div class="frow" role="group" aria-label="Тип связи">
-        <span class="flabel">Взаимодействия</span>
-        <button class="chip rel" id="r-all" data-f="all" aria-pressed="true">Все</button>
-        <button class="chip rel" id="r-syn" data-f="syn" aria-pressed="false"><span class="ln syn"></span>Помогают</button>
-        <button class="chip rel" id="r-anti" data-f="anti" aria-pressed="false"><span class="ln anti"></span>Мешают</button>
-        <button class="chip rel" id="r-warn" data-f="warn" aria-pressed="false"><span class="ln warn"></span>Зависит от дозы</button>
-        <button class="chip" id="r-off" aria-pressed="false">Показать все</button>
+      <div class="frow" id="goalRow" role="group" aria-label="Цель" hidden><span class="flabel">Цель</span></div>
+      <div class="frow" role="group" aria-label="Связи между добавками">
+        <span class="flabel">Связи</span>
+        <button class="chip shw" data-s="anti" aria-pressed="true"><span class="ln anti"></span>Конфликты</button>
+        <button class="chip shw" data-s="all" aria-pressed="false">Все</button>
+        <button class="chip shw" data-s="none" aria-pressed="false">Скрыть</button>
         <label class="chk" for="hideC"><input type="checkbox" id="hideC">Без слабых данных (C)</label>
+        <button class="chip" id="mineBtn" aria-pressed="false" hidden>Мой набор</button>
       </div>
       <div class="frow">
         <label class="flabel" for="q">Поиск</label>
@@ -809,16 +816,18 @@ const byId=Object.fromEntries(N.map(n=>[n.id,n]));
 // English names are used on the map and in the card; Russian names stay in tables and schedules
 const EN={D3:"Vitamin D3",K2:"Vitamin K2",A:"Vitamin A",E:"Vitamin E",C:"Vitamin C",B1:"Vitamin B1",B6:"Vitamin B6",B9:"Folate (B9)",B12:"Vitamin B12",Ca:"Calcium",Mg:"Magnesium",Zn:"Zinc",Cu:"Copper",Fe:"Iron",Se:"Selenium",I:"Iodine",O3:"Omega-3",Cur:"Curcumin",Pip:"Piperine",Q10:"Coenzyme Q10",Cre:"Creatine",Gly:"Glycine",NAD:"NAD+ (NMN, NR)",Api:"Apigenin",NAC:"NAC",Tau:"Taurine",LT:"L-Theanine",Ash:"Ashwagandha",Mel:"Melatonin",Gar:"Garlic extract",Beet:"Beetroot juice",Hib:"Hibiscus tea",Rho:"Rhodiola rosea",Saf:"Saffron extract",Bac:"Bacopa monnieri",BA:"Beta-alanine",Bic:"Sodium bicarbonate",Prot:"Whey protein",Psy:"Psyllium",Pro:"Probiotics",Cof:"Coffee & tea",GTE:"Green tea extract",Coc:"Cocoa flavanols",Res:"Resveratrol"};
 N.forEach(n=>{n.en=EN[n.id]||n.name});
+const DEFONLY={energy:["Fe","B12","I","Cu","B1","B6","Q10"],immune:["D3","A","Se"],brain:["B1","B6","B9","B12"],bones:["Ca"]};
+const defOnly=(id,k)=>(DEFONLY[k]||[]).includes(id);
 const GEN={long:"Anti-aging",infl:"Inflammation",sleep:"Sleep & stress",energy:"Energy",brain:"Brain & focus",heart:"Heart",bones:"Bones & muscle",immune:"Immunity"};
 Object.keys(G).forEach(k=>{G[k].en=GEN[k]||G[k].n});
 const NS="http://www.w3.org/2000/svg";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const svg=document.getElementById("g"),stage=document.getElementById("stage"),note=document.getElementById("note");
-const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",noEdges:true,help:false,panelOff:false};
+const state={filter:"all",hideC:false,goal:null,sel:null,hover:null,q:"",show:"anti",mine:false,help:false,panelOff:false};
 const AL={D3:"vitamin d холекальциферол витамин д",K2:"mk-7 mk7 менахинон витамин к",A:"retinol ретинол бета-каротин",E:"tocopherol токоферол",C:"ascorbic аскорбиновая кислота",B1:"thiamine тиамин бенфотиамин",B6:"pyridoxine пиридоксин p5p",B9:"folate folic фолиевая метилфолат",B12:"cobalamin кобаламин метилкобаламин",Ca:"calcium",Mg:"magnesium глицинат цитрат",Zn:"zinc",Cu:"copper",Fe:"iron ферритин",Se:"selenium",I:"iodine",O3:"omega fish oil рыбий жир epa dha омега",Cur:"curcumin turmeric куркума",Pip:"piperine bioperine чёрный перец",Q10:"coq10 убихинон убихинол коэнзим",Cre:"creatine",Gly:"glycine",NAD:"nmn nr никотинамид рибозид",Api:"apigenin ромашка",NAC:"nac n-acetylcysteine ацетилцистеин глутатион",Tau:"taurine",LT:"l-theanine theanine теанин",Ash:"ashwagandha ksm-66",Cof:"coffee caffeine tea кофеин чай",Mel:"melatonin",Gar:"garlic aged kyolic чеснок",Beet:"beet beetroot nitrate нитраты свекла свёкла",Hib:"hibiscus каркаде",Rho:"rhodiola",Saf:"saffron affron",Bac:"bacopa",BA:"beta-alanine бета аланин",Bic:"bicarbonate сода",Prot:"protein whey протеин белок",Psy:"psyllium клетчатка",Pro:"probiotic пробиотик",GTE:"green tea egcg катехины зелёный чай",Coc:"cocoa cacao flavanols какао флаванолы",Res:"resveratrol ресвератрол"};
 const norm=x=>x.toLowerCase().replace(/ё/g,"е");
 N.forEach(n=>{n.hay=norm([n.name,n.s,n.id,AL[n.id]||""].join(" "));n.words=n.hay.split(/[\s()+,.\-]+/).filter(Boolean)});
-function matches(){const q=norm(state.q.trim());if(!q)return null;
+function matches(){const q=norm(state.q.trim());if(!q){if(!state.mine)return null;const ms=mySet();return ms.size?new Set(ms.keys()):null}
   return new Set(N.filter(n=>n.words.some(w=>w.startsWith(q))||(q.length>=3&&n.hay.includes(q))).map(n=>n.id))}
 const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 let W=800,H=640,S=1,R=17,alpha=1,raf=null;
@@ -939,7 +948,7 @@ HUB={};RING.forEach(k=>{const c=`var(${G[k].c})`,h=el("g",{class:"hub",tabindex:
   h.addEventListener("pointerdown",ev=>{ev.preventDefault();hubDrag={k,cx:ev.clientX,cy:ev.clientY,moved:false};try{svg.setPointerCapture(ev.pointerId)}catch(_){}});
   h.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();hubGo(k)}});HUB[k]=h});
 function hubGo(k){document.getElementById(state.goal===k?"goal-all":"goal-"+k).click()}
-N.forEach(n=>{n.sp=n.g.map(k=>({k,l:el("line",{class:"spoke",style:`stroke:var(${G[k].c})`},gS)}))});anchors();
+N.forEach(n=>{n.sp=n.g.map(k=>({k,l:el("line",{class:"spoke"+(defOnly(n.id,k)?" def":""),style:`stroke:var(${G[k].c})`},gS)}))});anchors();
 E.forEach(e=>{
   e.line=el("line",{class:`edge ${e.t} ev${e.ev}`},gE);
   e.hit=el("line",{class:"hit"},gH);
@@ -958,7 +967,7 @@ function buildNodes(){
     else if(k===1) el("circle",{class:"arc",r:rr,style:`stroke:var(${G[n.g[0]].c})`,"stroke-width":3.5},inn);
     else n.g.forEach((gk,j)=>{const a0=-Math.PI/2+j*2*Math.PI/k+gap/2,a1=a0+2*Math.PI/k-gap;
       el("path",{class:"arc",d:arc(rr,a0,a1),style:`stroke:var(${G[gk].c})`,"stroke-width":3.5},inn)});
-    el("circle",{class:"core",r:R},inn);
+    el("circle",{class:"core",r:R},inn);el("circle",{class:"mk",r:4.5,cx:(R*.78).toFixed(1),cy:(-R*.78).toFixed(1)},inn);
     const s=el("text",{class:"sym"},inn);s.textContent=n.s;if(n.s.length>2)s.style.fontSize="10px";
     const t=el("text",{class:"nm",y:rr+14},inn);t.textContent=n.en;
     n.g_el=g;
@@ -993,7 +1002,7 @@ function tick(a){
   N.forEach(n=>{
     if(KEEP&&!KEEP.has(n.id))return;
     const cy=KEEP?Math.min(H/2,330):H/2;
-    if(KEEP||!n.g.length){n.vx+=(W/2-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}
+    if(KEEP||!n.g.length){n.vx+=((KEEP&&innerWidth>900&&note.classList.contains("open")?(W-424)/2:W/2)-n.x)*.006*cp*a;n.vy+=(cy-n.y)*.009*cp*a}
     else n.g.forEach(k=>{const h=GA[k],dx=h.x-n.x,dy=h.y-n.y,d=Math.hypot(dx,dy)||1,f=(d-LH)/d*.07*a;n.vx+=dx*f;n.vy+=dy*f});
     if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=n.vy=0;return}
     n.vx*=.6;n.vy*=.6;n.x+=n.vx;n.y+=n.vy;
@@ -1036,7 +1045,7 @@ svg.addEventListener("pointermove",ev=>{if(!hubDrag||FOCUS)return;
 svg.addEventListener("pointerup",()=>{if(!hubDrag)return;const {k,moved}=hubDrag;hubDrag=null;lastNodeUp=performance.now();if(!moved)hubGo(k)});
 svg.addEventListener("pointercancel",()=>{hubDrag=null});
 // one way out of any focus: back to the whole map, goal filter cleared
-function resetView(){state.sel=null;state.help=false;state.goal=null;
+function resetView(){state.sel=null;state.help=false;state.goal=null;state.mine=false;
   goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x.dataset.g===""));applyView();renderNote()}
 
 function select(s){state.sel=s;if(s){state.help=false;state.panelOff=false}applyView();renderNote();note.scrollTop=0}
@@ -1052,11 +1061,14 @@ function focusSets(){
   return {rn:null,re:null,s:null,M:null};
 }
 function applyView(){
+  const ms=mySet(),mb=document.getElementById("mineBtn"),clash=E.filter(e=>e.t==="anti"&&ms.has(e.a)&&ms.has(e.b)).length;
+  if(!ms.size)state.mine=false;
+  mb.hidden=!ms.size;mb.setAttribute("aria-pressed",state.mine);mb.textContent=`Мой набор · ${ms.size}`+(clash?` · конфликтов: ${clash}`:"");
   const {rn,re,s,M}=focusSets(),focus=!!s,ego=!!state.sel,gf=!ego&&!M&&!!state.goal;
   const gset=gf?new Set(N.filter(n=>n.g.includes(state.goal)).map(n=>n.id)):null;
   layoutFocus(ego?state.sel:gf?{type:"goal",k:state.goal}:null,re);
   svg.classList.toggle("ego",ego);svg.classList.toggle("find",!!M);svg.classList.toggle("gf",gf);
-  document.getElementById("mapBack").hidden=!(ego||gf);document.getElementById("mapHelp").hidden=ego||gf;
+  document.getElementById("mapBack").hidden=!(ego||gf||state.mine);document.getElementById("mapHelp").hidden=ego||gf||state.mine;
   // while searching, everything outside the matches (and the hovered node's partners) disappears entirely
   const keep=M?new Set([...M,...(rn||[])]):null;
   const k=M?[...M].sort().join():"";if(k!==keepKey){keepKey=k;KEEP=M&&M.size>1?M:null;heat(.6)}
@@ -1065,7 +1077,7 @@ function applyView(){
     let show=visible(e)||(!!s&&s.type==="edge"&&s.i===e.i);
     if((M||ego)&&!inRe)show=false;
     if(gf&&!(gset.has(e.a)&&gset.has(e.b)))show=false;
-    if(state.noEdges&&!(focus&&inRe))show=false;
+    if(!M&&!(focus&&inRe)&&(state.show==="none"||(state.show==="anti"&&e.t!=="anti")))show=false;
     e.line.classList.toggle("hide",!show);e.hit.classList.toggle("hide",!show);
     e.line.classList.toggle("dim",show&&!!re&&!inRe);e.line.classList.toggle("on",inRe);
   });
@@ -1073,7 +1085,7 @@ function applyView(){
     const gone=(!!keep&&!keep.has(n.id))||(ego&&!rn.has(n.id))||(gf&&!gset.has(n.id));
     n.g_el.classList.toggle("gone",gone);
     n.g_el.classList.toggle("dim",!gone&&!!rn&&!rn.has(n.id));
-    n.g_el.classList.toggle("match",!!M&&M.has(n.id));
+    n.g_el.classList.toggle("match",!!M&&M.has(n.id));n.g_el.classList.toggle("inset",ms.has(n.id));
     n.g_el.classList.toggle("sel",!!state.sel&&((state.sel.type==="node"&&state.sel.id===n.id)||(state.sel.type==="edge"&&rn.has(n.id))));
   });
   // hubs and spokes: a hovered supplement lights its goals, a chosen goal lights its supplements
@@ -1090,7 +1102,7 @@ function layoutFocus(s,re){
   const cx=(W-panel)/2,cy=wide?H/2:Math.min(H/2,300);
   // a chosen goal moves to the centre, its supplements form a ring (two rings when there are many)
   if(s.type==="goal"){const gy=wide?cy:Math.min(H/2,360),h=GA[s.k];h.tx=cx;h.ty=gy;
-    const ns=N.filter(n=>n.g.includes(s.k)).sort((a,b)=>a.g.length-b.g.length),two=wide&&ns.length>9,sc=ns.length<=4?.6:ns.length<=7?.8:1;
+    const ns=N.filter(n=>n.g.includes(s.k)).sort((a,b)=>defOnly(a.id,s.k)-defOnly(b.id,s.k)||a.g.length-b.g.length),two=wide&&ns.length>9,sc=ns.length<=4?.6:ns.length<=7?.8:1;
     const rx=Math.max(100,Math.min(290,cx-76))*sc,ry=Math.max(120,Math.min(wide?270:310,gy-R-44))*sc;
     ns.forEach((n,i)=>{const a=-Math.PI/2+(i+.5)/ns.length*Math.PI*2,f=i%2&&ns.length>9?(two?.6:.84):1;n.tx=cx+Math.cos(a)*rx*f;n.ty=gy+Math.sin(a)*ry*f});
     heat(.5);return}
@@ -1119,15 +1131,17 @@ function renderNote(){
   const M=matches();
   if(!s&&M){
     const list=N.filter(n=>M.has(n.id));
-    note.innerHTML=list.length?`<div><span class="kind">Поиск</span><h2>Найдено: ${list.length}</h2></div>
-      ${list.length===1?`<p class="how">${esc(list[0].tip)}</p>${connList(list[0])}`:`<p class="kind">Наведи на добавку на графе, чтобы увидеть её связи, или нажми на неё в списке.</p>
+    const mine=!state.q.trim()&&state.mine,om={anti:0,warn:1,syn:2},es=mine?E.filter(e=>M.has(e.a)&&M.has(e.b)).sort((x,y)=>om[x.t]-om[y.t]):[];
+    const mineHtml=es.length?`<ul class="list">${es.map(e=>`<li><button data-e="${e.i}"><span class="dot ${e.t}"></span><span><b>${esc(byId[e.a].en)} + ${esc(byId[e.b].en)}</b> <span class="ev">${e.ev}</span><br><span class="t">${esc(e.txt)}</span></span></button></li>`).join("")}</ul>`:'<p class="kind">Между добавками набора связей нет.</p>';
+    note.innerHTML=list.length?`<div><span class="kind">${mine?"Мой набор":"Поиск"}</span><h2>${mine?"Связи внутри набора":"Найдено: "+list.length}</h2></div>
+      ${list.length===1?`<p class="how">${esc(list[0].tip)}</p>${connList(list[0])}`:`${mine?mineHtml:'<p class="kind">Наведи на добавку на графе, чтобы увидеть её связи, или нажми на неё в списке.</p>'}
       <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:${gcol(n)};margin-top:7px"></span><span><b>${esc(n.en)}</b></span></button></li>`).join("")}</ul>`}`
       :`<h2>Ничего не нашлось</h2><p class="kind">Попробуй по-другому: по-русски, по-английски или первые буквы.</p>`;
   } else if(!s&&state.goal){
-    const g=G[state.goal],list=N.filter(n=>n.g.includes(state.goal));
+    const g=G[state.goal],list=N.filter(n=>n.g.includes(state.goal)).sort((a,b)=>defOnly(a.id,state.goal)-defOnly(b.id,state.goal));
     note.innerHTML=`<div><span class="kind">Цель</span><h2 style="color:var(${g.c})">${g.en}</h2></div>
       <p class="how">${esc(g.note)}</p>
-      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:var(${g.c});margin-top:7px"></span><span><b>${esc(n.en)}</b><br><span class="t">${esc(((INFO[n.id]||{}).goals||{})[state.goal]||"")}</span></span></button></li>`).join("")}</ul>`;
+      <ul class="list">${list.map(n=>`<li><button data-n="${n.id}"><span class="gdot" style="background:var(${g.c});margin-top:7px"></span><span><b>${esc(n.en)}</b>${defOnly(n.id,state.goal)?' <span class="deftag">только при дефиците</span>':""}<br><span class="t">${esc(((INFO[n.id]||{}).goals||{})[state.goal]||"")}</span></span></button></li>`).join("")}</ul>`;
   } else if(!s){
     note.innerHTML=`<h2>Коротко</h2><ol class="rules">
       <li>D3, K2 и магний работают в связке. D3 и K2 пей с едой, в которой есть жир.</li>
@@ -1143,6 +1157,8 @@ function renderNote(){
           <li><span class="ln anti"></span><span>Красная — мешают, разноси по времени</span></li>
           <li><span class="ln warn"></span><span>Жёлтый пунктир — мешают только в больших дозах</span></li>
           <li><span class="thick"></span><span>Чем толще линия, тем надёжнее данные (A, B, C)</span></li>
+          <li><span class="ln dash"></span><span>Пунктир к цели — помогает только при дефиците</span></li>
+          <li><span class="mkl"></span><span>Белая точка — добавка в твоём наборе</span></li>
         </ul></section>
       <section class="ns"><h4>Цвет кольца — цель</h4>
         <ul class="legendl">${Object.values(G).map(g=>`<li><span class="gdot" style="background:var(${g.c})"></span><span>${g.en}</span></li>`).join("")}</ul></section>
@@ -1264,7 +1280,7 @@ function mySet(){
 function toggleItem(id){
   if(mySet().has(id)){extras.delete(id);if(inStacks(id))excluded.add(id)}
   else{excluded.delete(id);if(!inStacks(id))extras.add(id)}
-  save();renderPlan();if(state.sel&&state.sel.type==="node")renderNote();
+  save();renderPlan();applyView();if((state.sel&&state.sel.type==="node")||state.mine)renderNote();
 }
 document.getElementById("stacks").innerHTML=STACKS.map((s,i)=>{
   const core=s.items.filter(x=>!x[3]);
@@ -1746,7 +1762,9 @@ const qClear=document.getElementById("qclear");
 function setQ(v){qIn.value=v;state.q=v;state.sel=null;state.help=false;state.panelOff=false;const M=matches();qCount.textContent=M?`${M.size}`:"";qClear.hidden=!v;applyView();renderNote()}
 qIn.addEventListener("input",()=>setQ(qIn.value));
 qClear.addEventListener("click",()=>{setQ("");qIn.focus()});
-document.getElementById("r-off").addEventListener("click",ev=>{state.noEdges=!state.noEdges;ev.currentTarget.setAttribute("aria-pressed",!state.noEdges);ev.currentTarget.textContent=state.noEdges?"Показать все":"Скрыть";applyView()});
+document.querySelectorAll(".shw").forEach(b=>b.addEventListener("click",()=>{state.show=b.dataset.s;document.querySelectorAll(".shw").forEach(x=>x.setAttribute("aria-pressed",x===b));applyView()}));
+document.getElementById("mineBtn").addEventListener("click",()=>{state.mine=!state.mine;state.sel=null;state.help=false;state.panelOff=false;state.goal=null;
+  goalRow.querySelectorAll(".goal").forEach(x=>x.setAttribute("aria-pressed",x.dataset.g===""));applyView();renderNote()});
 qIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const M=matches();if(M&&M.size){ev.preventDefault();select({type:"node",id:[...M][0]})}}
   if(ev.key==="Escape")setQ("")});
 
